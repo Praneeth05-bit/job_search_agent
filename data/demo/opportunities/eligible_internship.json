@@ -1,0 +1,27 @@
+{
+  "id": "opp-001",
+  "title": "Software Engineering Intern",
+  "organization": "Northstar Civic Labs",
+  "opportunity_type": "internship",
+  "description": "Build and test Python services that support public-interest data products.",
+  "location": "San Jose, CA",
+  "source_name": "synthetic-demo-dataset",
+  "source_url": "https://example.com/opportunities/opp-001",
+  "posted_at": "2026-09-15T16:00:00Z",
+  "deadline": "2026-10-15",
+  "eligibility": {
+    "degree_levels": [
+      "bachelors"
+    ],
+    "majors": [
+      "Computer Science",
+      "Software Engineering"
+    ],
+    "minimum_gpa": 3.0,
+    "graduation_start": "2027-05-01",
+    "graduation_end": "2028-12-31",
+    "work_authorizations": [
+      "authorized_to_work_in_us"
+    ]
+  }
+}

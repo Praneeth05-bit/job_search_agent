@@ -1,0 +1,20 @@
+{
+  "id": "opp-006",
+  "title": "Software Engineering Intern",
+  "organization": "Harborlight Public Data Co-op",
+  "opportunity_type": "internship",
+  "description": "Build and test Python services that support public-interest data products.",
+  "location": "Remote (US)",
+  "source_name": "synthetic-demo-dataset",
+  "source_url": "https://example.com/opportunities/opp-006",
+  "posted_at": "2026-11-01T16:00:00Z",
+  "deadline": "2027-02-01",
+  "eligibility": {
+    "degree_levels": ["bachelors", "masters"],
+    "majors": ["Computer Science", "Software Engineering"],
+    "minimum_gpa": 3.0,
+    "graduation_start": "2027-05-01",
+    "graduation_end": "2028-12-31",
+    "work_authorizations": ["authorized_to_work_in_us"]
+  }
+}

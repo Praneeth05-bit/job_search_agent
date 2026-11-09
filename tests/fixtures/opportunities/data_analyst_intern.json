@@ -1,0 +1,20 @@
+{
+  "id": "opp-002",
+  "title": "Data Analyst Intern",
+  "organization": "Bayline Transit Analytics",
+  "opportunity_type": "internship",
+  "description": "Write SQL queries and Python notebooks to clean ridership data and build weekly dashboards for operations teams.",
+  "location": "San Jose, CA",
+  "source_name": "synthetic-demo-dataset",
+  "source_url": "https://example.com/opportunities/opp-002",
+  "posted_at": "2026-10-20T17:00:00Z",
+  "deadline": "2026-12-15",
+  "eligibility": {
+    "degree_levels": ["bachelors", "masters"],
+    "majors": ["Data Science", "Applied Data Intelligence", "Statistics"],
+    "minimum_gpa": 3.0,
+    "graduation_start": "2027-05-01",
+    "graduation_end": "2028-12-31",
+    "work_authorizations": ["authorized_to_work_in_us"]
+  }
+}

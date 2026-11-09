@@ -1,0 +1,23 @@
+# Virtual environment (rebuild with: uv sync)
+.venv/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+
+# Tool caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Secrets: never commit real keys
+.env
+
+# Local downloads, not part of the project
+Claude outputs/
+
+# Editor and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

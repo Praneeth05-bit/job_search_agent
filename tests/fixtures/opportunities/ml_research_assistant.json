@@ -1,0 +1,20 @@
+{
+  "id": "opp-004",
+  "title": "Machine Learning Research Assistant",
+  "organization": "Redwood Vision Lab",
+  "opportunity_type": "research",
+  "description": "Train PyTorch models for image classification, run machine learning experiments, and summarize results for weekly lab meetings.",
+  "location": "San Jose, CA",
+  "source_name": "synthetic-demo-dataset",
+  "source_url": "https://example.com/opportunities/opp-004",
+  "posted_at": "2026-10-28T16:00:00Z",
+  "deadline": null,
+  "eligibility": {
+    "degree_levels": null,
+    "majors": null,
+    "minimum_gpa": null,
+    "graduation_start": null,
+    "graduation_end": null,
+    "work_authorizations": null
+  }
+}

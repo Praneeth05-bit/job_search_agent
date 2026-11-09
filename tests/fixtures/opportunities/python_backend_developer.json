@@ -1,0 +1,20 @@
+{
+  "id": "opp-003",
+  "title": "Python Backend Developer",
+  "organization": "Spartan Campus IT Services",
+  "opportunity_type": "job",
+  "description": "Maintain Python APIs for campus scheduling tools, write unit tests, and fix production bugs with the platform team.",
+  "location": "San Jose, CA (on campus)",
+  "source_name": "synthetic-demo-dataset",
+  "source_url": "https://example.com/opportunities/opp-003",
+  "posted_at": "2026-10-25T18:30:00Z",
+  "deadline": "2027-01-10",
+  "eligibility": {
+    "degree_levels": ["masters"],
+    "majors": ["Computer Science", "Software Engineering", "Applied Data Intelligence"],
+    "minimum_gpa": null,
+    "graduation_start": null,
+    "graduation_end": null,
+    "work_authorizations": null
+  }
+}
