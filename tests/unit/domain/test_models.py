@@ -50,13 +50,13 @@ def test_gpa_outside_bounds_is_rejected(gpa: float) -> None:
 def test_invalid_graduation_date_is_rejected() -> None:
     """Dates must be real dates, not free text."""
     with pytest.raises(ValidationError):
-        StudentProfile(expected_graduation="next spring")  # type: ignore[arg-type]
+        StudentProfile(expected_graduation="next spring")
 
 
 def test_profile_extra_field_is_rejected() -> None:
     """Unknown profile fields are refused instead of silently ignored."""
     with pytest.raises(ValidationError):
-        StudentProfile(age=25)  # type: ignore[call-arg]
+        StudentProfile(age=25) # type: ignore[call-arg]
 
 
 # ---------------------------------------------------------------------------
