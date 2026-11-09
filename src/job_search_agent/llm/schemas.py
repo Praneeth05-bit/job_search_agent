@@ -29,6 +29,7 @@ class ToolCall(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
+    id: str | None = None  # provider's call id, needed to send the result back
     name: str = Field(min_length=1)
     arguments: dict[str, Any] = Field(default_factory=dict)
 
@@ -38,6 +39,7 @@ class ModelResponse(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
+    response_id: str | None = None  # provider's id for this reply, for follow-ups
     text: str | None = None
     tool_calls: list[ToolCall] = Field(default_factory=list)
     latency_ms: float = Field(default=0.0, ge=0)

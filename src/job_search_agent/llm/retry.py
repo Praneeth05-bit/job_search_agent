@@ -36,7 +36,7 @@ def backoff_delay(
     Returns:
         ``min(max, base * 2**attempt) + jitter() * base`` seconds.
     """
-    exponential = min(max_delay_seconds, base_delay_seconds * 2**attempt)
+    exponential = min(max_delay_seconds, base_delay_seconds * 2.0**attempt)
     return exponential + jitter() * base_delay_seconds
 
 
