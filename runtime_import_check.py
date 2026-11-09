@@ -6,7 +6,6 @@ import importlib
 import sys
 from importlib.metadata import PackageNotFoundError, version
 
-
 DEPENDENCIES = {
     "fastapi": "fastapi",
     "google-genai": "google.genai",

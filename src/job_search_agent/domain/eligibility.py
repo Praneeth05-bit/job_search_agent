@@ -133,9 +133,7 @@ def _check_deadline(opportunity: Opportunity, today: date) -> RuleCheck:
     )
 
 
-def _check_degree_level(
-    opportunity: Opportunity, profile: StudentProfile
-) -> RuleCheck:
+def _check_degree_level(opportunity: Opportunity, profile: StudentProfile) -> RuleCheck:
     """Check the student's degree level against the accepted levels."""
     return _check_allowed_values(
         rule="degree_level",
@@ -155,9 +153,7 @@ def _check_major(opportunity: Opportunity, profile: StudentProfile) -> RuleCheck
     )
 
 
-def _check_minimum_gpa(
-    opportunity: Opportunity, profile: StudentProfile
-) -> RuleCheck:
+def _check_minimum_gpa(opportunity: Opportunity, profile: StudentProfile) -> RuleCheck:
     """Check that the student's GPA meets the minimum. Equal passes."""
     minimum = opportunity.eligibility.minimum_gpa
     if minimum is None:

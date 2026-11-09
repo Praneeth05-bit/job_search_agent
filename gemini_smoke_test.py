@@ -8,7 +8,6 @@ from typing import Any
 from google import genai
 from pydantic import BaseModel
 
-
 MODEL = "gemini-3.6-flash"
 
 
@@ -63,17 +62,12 @@ def check_function_call(client: genai.Client) -> None:
     interaction = client.interactions.create(
         model=MODEL,
         input=(
-            "Use the search_opportunities tool to find Python automation "
-            "internships."
+            "Use the search_opportunities tool to find Python automation internships."
         ),
         tools=[SEARCH_TOOL],
     )
 
-    calls = [
-        step
-        for step in (interaction.steps or [])
-        if step.type == "function_call"
-    ]
+    calls = [step for step in (interaction.steps or []) if step.type == "function_call"]
     if not calls:
         raise RuntimeError("Function-calling check failed: no function call returned.")
 
@@ -83,7 +77,9 @@ def check_function_call(client: genai.Client) -> None:
 
     query = call.arguments.get("query") if call.arguments else None
     if not isinstance(query, str) or not query.strip():
-        raise RuntimeError(f"Function call contained an invalid query: {call.arguments}")
+        raise RuntimeError(
+            f"Function call contained an invalid query: {call.arguments}"
+        )
 
     print(f"Function calling: PASS ({call.name}, query={query!r})")
 

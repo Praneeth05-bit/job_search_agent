@@ -36,6 +36,7 @@ class Opportunity(BaseModel):
     deadline: date | None = None
     eligibility: EligibilityRequirements
 
+
 class StudentProfile(BaseModel):
     """Facts about a student used to check eligibility.
 

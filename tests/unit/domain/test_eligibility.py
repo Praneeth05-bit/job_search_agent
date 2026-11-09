@@ -57,7 +57,9 @@ def _with_requirements(opportunity: Opportunity, **changes: object) -> Opportuni
 @pytest.mark.parametrize(
     ("opportunity_id", "expected"),
     [
-        pytest.param("opp-001", EligibilityStatus.INELIGIBLE, id="opp-001_deadline_passed"),
+        pytest.param(
+            "opp-001", EligibilityStatus.INELIGIBLE, id="opp-001_deadline_passed"
+        ),
         pytest.param("opp-002", EligibilityStatus.INELIGIBLE, id="opp-002_wrong_major"),
         pytest.param("opp-003", EligibilityStatus.ELIGIBLE, id="opp-003_eligible"),
         pytest.param("opp-004", EligibilityStatus.UNKNOWN, id="opp-004_no_deadline"),
@@ -193,7 +195,9 @@ def test_graduation_on_start_date_is_inside_window(
 
     decision = evaluate_eligibility(opportunities["opp-006"], student, TODAY)
 
-    assert _check_for(decision, "graduation_window").status is EligibilityStatus.ELIGIBLE
+    assert (
+        _check_for(decision, "graduation_window").status is EligibilityStatus.ELIGIBLE
+    )
 
 
 def test_graduation_before_window_fails(
@@ -205,8 +209,7 @@ def test_graduation_before_window_fails(
     decision = evaluate_eligibility(opportunities["opp-006"], student, TODAY)
 
     assert (
-        _check_for(decision, "graduation_window").status
-        is EligibilityStatus.INELIGIBLE
+        _check_for(decision, "graduation_window").status is EligibilityStatus.INELIGIBLE
     )
 
 
@@ -223,8 +226,7 @@ def test_graduation_only_end_bound_is_checked(
     decision = evaluate_eligibility(job, profile, TODAY)
 
     assert (
-        _check_for(decision, "graduation_window").status
-        is EligibilityStatus.INELIGIBLE
+        _check_for(decision, "graduation_window").status is EligibilityStatus.INELIGIBLE
     )
 
 

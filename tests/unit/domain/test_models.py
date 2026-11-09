@@ -10,7 +10,10 @@ from pydantic import ValidationError
 from job_search_agent.domain.models import Opportunity, StudentProfile
 
 OPPORTUNITY_FIXTURE = (
-    Path(__file__).parents[2] / "fixtures" / "opportunities" / "eligible_internship.json"
+    Path(__file__).parents[2]
+    / "fixtures"
+    / "opportunities"
+    / "eligible_internship.json"
 )
 
 

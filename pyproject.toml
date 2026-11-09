@@ -22,6 +22,7 @@ link-mode = "copy"
 [dependency-groups]
 dev = [
     "pytest==9.1.1",
+    "ruff==0.16.8",
 ]
 
 [build-system]
@@ -33,3 +34,10 @@ packages = ["src/job_search_agent"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
