@@ -56,7 +56,7 @@ def test_invalid_graduation_date_is_rejected() -> None:
 def test_profile_extra_field_is_rejected() -> None:
     """Unknown profile fields are refused instead of silently ignored."""
     with pytest.raises(ValidationError):
-        StudentProfile(age=25) # type: ignore[call-arg]
+        StudentProfile(age=25)  # type: ignore[call-arg]
 
 
 # ---------------------------------------------------------------------------
