@@ -8,7 +8,8 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-from job_search_agent.api.app import DEMO_DATA_DIR, app, get_opportunities, get_today
+from job_search_agent.api.app import app, get_opportunities, get_today
+from job_search_agent.config import get_settings
 from job_search_agent.data.loaders import load_opportunities
 
 FIXTURES = Path(__file__).parents[2] / "fixtures"
@@ -76,11 +77,11 @@ def test_search_rejects_unknown_fields(client: TestClient) -> None:
 
 
 def test_demo_data_folder_loads() -> None:
-    """Smoke test of the real wiring: the app's own data folder exists and loads.
+    """Smoke test of the real wiring: the configured data folder exists and loads.
 
     The other API tests override get_opportunities, so they cannot catch a
     missing or misplaced demo folder. This test uses no overrides.
     """
-    records = load_opportunities(DEMO_DATA_DIR)
+    records = load_opportunities(get_settings().data_dir)
 
     assert len(records) > 0

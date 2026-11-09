@@ -11,20 +11,16 @@ Then open http://localhost:8000/docs for interactive documentation.
 """
 
 from datetime import date
-from pathlib import Path
 from typing import Annotated
 
 from fastapi import Depends, FastAPI
 from pydantic import BaseModel, ConfigDict
 
+from job_search_agent.config import Settings, get_settings
 from job_search_agent.data.loaders import load_opportunities
 from job_search_agent.domain.models import Opportunity, StudentProfile
 from job_search_agent.retrieval.schemas import SearchQuery
 from job_search_agent.services.matching import MatchReport, find_matches
-
-# Demo data used by the running app. Tests replace it with their own
-# fixtures through dependency overrides, so the two can evolve separately.
-DEMO_DATA_DIR = Path(__file__).parents[3] / "data" / "demo" / "opportunities"
 
 app = FastAPI(
     title="SpartanScout",
@@ -47,9 +43,11 @@ class SearchRequest(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-def get_opportunities() -> list[Opportunity]:
-    """Load the demo opportunity records."""
-    return load_opportunities(DEMO_DATA_DIR)
+def get_opportunities(
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> list[Opportunity]:
+    """Load opportunity records from the configured data folder."""
+    return load_opportunities(settings.data_dir)
 
 
 def get_today() -> date:
