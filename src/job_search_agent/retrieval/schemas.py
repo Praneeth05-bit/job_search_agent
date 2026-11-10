@@ -10,9 +10,20 @@ class SearchQuery(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    text: str = Field(min_length=1)
-    opportunity_type: OpportunityType | None = None
-    limit: int = Field(default=10, ge=1, le=30)
+    text: str = Field(
+        min_length=1,
+        description="Keywords to search for, such as 'python backend'.",
+    )
+    opportunity_type: OpportunityType | None = Field(
+        default=None,
+        description="Only return this type of opportunity. Omit for any type.",
+    )
+    limit: int = Field(
+        default=10,
+        ge=1,
+        le=30,
+        description="Maximum number of results to return (1 to 30).",
+    )
 
 
 class SearchResult(BaseModel):
