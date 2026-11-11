@@ -14,7 +14,7 @@ from job_search_agent.llm.retry import (
     backoff_delay,
     call_with_retries,
 )
-from job_search_agent.llm.schemas import ModelResponse
+from job_search_agent.llm.schemas import ModelResponse, ToolOutput
 
 OK = ModelResponse(text="ok")
 
@@ -142,3 +142,20 @@ def test_non_model_exception_is_not_caught() -> None:
 
     assert len(calls) == 1
     assert sleep.delays == []
+
+
+def test_wrapper_passes_multi_turn_arguments_through() -> None:
+    """Retries must not drop the system instruction or tool outputs."""
+    mock = MockModelClient([ModelRateLimitError("429"), OK])
+    output = ToolOutput(call_id="c1", name="search_opportunities", result="{}")
+
+    _retrying(mock, SleepRecorder()).generate(
+        system_instruction="rules",
+        previous_response_id="r1",
+        tool_outputs=[output],
+    )
+
+    retried = mock.turns[1]  # the second attempt after the 429
+    assert retried.system_instruction == "rules"
+    assert retried.previous_response_id == "r1"
+    assert retried.tool_outputs == [output]

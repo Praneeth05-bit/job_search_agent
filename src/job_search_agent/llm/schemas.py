@@ -34,6 +34,21 @@ class ToolCall(BaseModel):
     arguments: dict[str, Any] = Field(default_factory=dict)
 
 
+class ToolOutput(BaseModel):
+    """The result of one tool call, sent back to the model on the next turn.
+
+    ``call_id`` must match the ``ToolCall.id`` the model sent, so the model
+    knows which request this result answers.
+    """
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    call_id: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+    result: str
+    is_error: bool = False
+
+
 class ModelResponse(BaseModel):
     """One model reply: either final text, tool calls, or both, plus usage."""
 

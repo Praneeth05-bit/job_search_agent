@@ -13,7 +13,7 @@ from job_search_agent.llm.errors import (
     ModelUnavailableError,
 )
 from job_search_agent.llm.mock import MockModelClient
-from job_search_agent.llm.schemas import ModelResponse, ToolCall, ToolSpec
+from job_search_agent.llm.schemas import ModelResponse, ToolCall, ToolOutput, ToolSpec
 
 SEARCH_TOOL = ToolSpec(
     name="search_opportunities",
@@ -101,3 +101,22 @@ def test_model_response_rejects_negative_usage() -> None:
     """Latency and token counts can never be negative."""
     with pytest.raises(ValidationError):
         ModelResponse(text="x", input_tokens=-1)
+
+
+def test_records_multi_turn_details() -> None:
+    """Tests can check that the agent re-sends rules and returns tool results."""
+    mock = MockModelClient([ModelResponse(text="done")])
+    output = ToolOutput(call_id="c1", name="search_opportunities", result="{}")
+
+    mock.generate(
+        tools=[SEARCH_TOOL],
+        system_instruction="rules",
+        previous_response_id="r1",
+        tool_outputs=[output],
+    )
+
+    turn = mock.turns[0]
+    assert turn.system_instruction == "rules"
+    assert turn.previous_response_id == "r1"
+    assert turn.tool_outputs == [output]
+    assert turn.tools == [SEARCH_TOOL]

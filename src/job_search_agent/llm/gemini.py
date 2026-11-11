@@ -10,6 +10,13 @@ SDK on 2026-11-09:
   ``usage.total_input_tokens`` / ``usage.total_output_tokens``.
 * ``google.genai.errors.APIError`` carries the HTTP status in ``.code``.
 
+Multi-turn (Interactions API docs, checked 2026-11-10): a follow-up turn sends
+``previous_interaction_id`` plus ``function_result`` input items with
+``call_id``, ``name``, ``result``, and ``is_error``. Interactions are stored by
+default (required for ``previous_interaction_id``; free-tier retention is one
+day). ``tools`` and ``system_instruction`` apply only to the call they are sent
+with, so they are re-sent on every turn.
+
 Everything is translated into our own ModelResponse and ModelError types, so
 no SDK object or exception escapes this file.
 """
@@ -29,7 +36,7 @@ from job_search_agent.llm.errors import (
     ModelUnavailableError,
 )
 from job_search_agent.llm.retry import RetryingModelClient
-from job_search_agent.llm.schemas import ModelResponse, ToolCall, ToolSpec
+from job_search_agent.llm.schemas import ModelResponse, ToolCall, ToolOutput, ToolSpec
 
 # Interaction statuses that mean the model did not produce a usable answer.
 _FAILED_STATUSES = {"failed", "cancelled", "incomplete", "budget_exceeded"}
@@ -53,15 +60,31 @@ class GeminiClient:
         self._model = model
         self._timeout_seconds = timeout_seconds
 
-    def generate(self, prompt: str, tools: Sequence[ToolSpec] = ()) -> ModelResponse:
-        """Send one prompt to Gemini and return a provider-neutral response.
+    def generate(
+        self,
+        prompt: str = "",
+        tools: Sequence[ToolSpec] = (),
+        *,
+        system_instruction: str | None = None,
+        previous_response_id: str | None = None,
+        tool_outputs: Sequence[ToolOutput] = (),
+    ) -> ModelResponse:
+        """Send one turn to Gemini and return a provider-neutral response.
 
         Raises:
-            ModelError: A subclass describing what went wrong.
+            ValueError: If neither a prompt nor tool outputs are given.
+            ModelError: A subclass describing what went wrong at the provider.
         """
-        request: dict[str, Any] = {"model": self._model, "input": prompt}
+        request: dict[str, Any] = {
+            "model": self._model,
+            "input": _build_input(prompt, tool_outputs),
+        }
         if tools:
             request["tools"] = [_to_gemini_tool(tool) for tool in tools]
+        if system_instruction:
+            request["system_instruction"] = system_instruction
+        if previous_response_id:
+            request["previous_interaction_id"] = previous_response_id
 
         started = time.perf_counter()
         try:
@@ -76,6 +99,26 @@ class GeminiClient:
         latency_ms = (time.perf_counter() - started) * 1000
 
         return to_model_response(interaction, latency_ms)
+
+
+def _build_input(
+    prompt: str, tool_outputs: Sequence[ToolOutput]
+) -> str | list[dict[str, Any]]:
+    """Turn a prompt or tool outputs into the Interactions API ``input`` value."""
+    if tool_outputs:
+        return [
+            {
+                "type": "function_result",
+                "call_id": output.call_id,
+                "name": output.name,
+                "result": output.result,
+                "is_error": output.is_error,
+            }
+            for output in tool_outputs
+        ]
+    if not prompt:
+        raise ValueError("A turn needs either a prompt or tool outputs")
+    return prompt
 
 
 def _to_gemini_tool(tool: ToolSpec) -> dict[str, Any]:

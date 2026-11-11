@@ -2,14 +2,28 @@
 
 Used by tests, CI, and local development (USE_MOCK_MODEL=true). It returns
 responses in the order they were scripted, can be scripted to raise errors,
-and records everything it was sent so tests can inspect it.
+and records every turn it was sent so tests can inspect it.
 """
 
 from collections import deque
 from collections.abc import Sequence
 
+from pydantic import BaseModel, ConfigDict
+
 from job_search_agent.llm.errors import ModelError, ModelResponseError
-from job_search_agent.llm.schemas import ModelResponse, ToolSpec
+from job_search_agent.llm.schemas import ModelResponse, ToolOutput, ToolSpec
+
+
+class RecordedTurn(BaseModel):
+    """Everything the mock received on one generate() call."""
+
+    model_config = ConfigDict(frozen=True)
+
+    prompt: str
+    tools: list[ToolSpec]
+    system_instruction: str | None
+    previous_response_id: str | None
+    tool_outputs: list[ToolOutput]
 
 
 class MockModelClient:
@@ -22,22 +36,46 @@ class MockModelClient:
             script: Responses to return, or errors to raise, one per call.
         """
         self._script: deque[ModelResponse | ModelError] = deque(script)
-        self.prompts: list[str] = []
-        self.tools_seen: list[list[ToolSpec]] = []
+        self.turns: list[RecordedTurn] = []
 
     @property
     def remaining(self) -> int:
         """How many scripted items have not been used yet."""
         return len(self._script)
 
-    def generate(self, prompt: str, tools: Sequence[ToolSpec] = ()) -> ModelResponse:
-        """Record the call, then return or raise the next scripted item."""
-        self.prompts.append(prompt)
-        self.tools_seen.append(list(tools))
+    @property
+    def prompts(self) -> list[str]:
+        """The prompt sent on each call, in order."""
+        return [turn.prompt for turn in self.turns]
+
+    @property
+    def tools_seen(self) -> list[list[ToolSpec]]:
+        """The tools offered on each call, in order."""
+        return [turn.tools for turn in self.turns]
+
+    def generate(
+        self,
+        prompt: str = "",
+        tools: Sequence[ToolSpec] = (),
+        *,
+        system_instruction: str | None = None,
+        previous_response_id: str | None = None,
+        tool_outputs: Sequence[ToolOutput] = (),
+    ) -> ModelResponse:
+        """Record the turn, then return or raise the next scripted item."""
+        self.turns.append(
+            RecordedTurn(
+                prompt=prompt,
+                tools=list(tools),
+                system_instruction=system_instruction,
+                previous_response_id=previous_response_id,
+                tool_outputs=list(tool_outputs),
+            )
+        )
 
         if not self._script:
             raise ModelResponseError(
-                f"Mock script exhausted after {len(self.prompts) - 1} calls"
+                f"Mock script exhausted after {len(self.turns) - 1} calls"
             )
 
         item = self._script.popleft()

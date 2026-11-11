@@ -15,7 +15,7 @@ from collections.abc import Callable, Sequence
 
 from job_search_agent.llm.client import ModelClient
 from job_search_agent.llm.errors import ModelError
-from job_search_agent.llm.schemas import ModelResponse, ToolSpec
+from job_search_agent.llm.schemas import ModelResponse, ToolOutput, ToolSpec
 
 
 def backoff_delay(
@@ -109,10 +109,24 @@ class RetryingModelClient:
         self._sleep = sleep
         self._jitter = jitter
 
-    def generate(self, prompt: str, tools: Sequence[ToolSpec] = ()) -> ModelResponse:
+    def generate(
+        self,
+        prompt: str = "",
+        tools: Sequence[ToolSpec] = (),
+        *,
+        system_instruction: str | None = None,
+        previous_response_id: str | None = None,
+        tool_outputs: Sequence[ToolOutput] = (),
+    ) -> ModelResponse:
         """Call the wrapped client, retrying temporary failures."""
         return call_with_retries(
-            lambda: self._inner.generate(prompt, tools),
+            lambda: self._inner.generate(
+                prompt,
+                tools,
+                system_instruction=system_instruction,
+                previous_response_id=previous_response_id,
+                tool_outputs=tool_outputs,
+            ),
             max_retries=self._max_retries,
             base_delay_seconds=self._base_delay_seconds,
             max_delay_seconds=self._max_delay_seconds,

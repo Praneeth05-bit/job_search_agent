@@ -20,7 +20,7 @@ from job_search_agent.llm.gemini import (
     create_gemini_client,
     translate_error,
 )
-from job_search_agent.llm.schemas import ToolSpec
+from job_search_agent.llm.schemas import ToolOutput, ToolSpec
 
 SEARCH_TOOL = ToolSpec(
     name="search_opportunities",
@@ -214,3 +214,60 @@ def test_missing_api_key_fails_clearly(monkeypatch: pytest.MonkeyPatch) -> None:
 
     with pytest.raises(ModelAuthError, match="GEMINI_API_KEY"):
         create_gemini_client(settings)
+
+
+# ---------------------------------------------------------------------------
+# Multi-turn
+# ---------------------------------------------------------------------------
+
+
+def test_follow_up_turn_sends_function_results_and_previous_id() -> None:
+    """A tool result goes back with its call_id, continuing the earlier reply."""
+    fake = FakeInteractions(_interaction(output_text="You qualify for opp-006."))
+
+    _client(fake).generate(
+        tools=[SEARCH_TOOL],
+        system_instruction="Only recommend tool results.",
+        previous_response_id="int-123",
+        tool_outputs=[
+            ToolOutput(
+                call_id="call-1",
+                name="search_opportunities",
+                result="<tool_result>...</tool_result>",
+            )
+        ],
+    )
+
+    call = fake.calls[0]
+    assert call["previous_interaction_id"] == "int-123"
+    assert call["system_instruction"] == "Only recommend tool results."
+    assert call["input"] == [
+        {
+            "type": "function_result",
+            "call_id": "call-1",
+            "name": "search_opportunities",
+            "result": "<tool_result>...</tool_result>",
+            "is_error": False,
+        }
+    ]
+    assert "tools" in call  # tools are re-sent on every turn
+
+
+def test_first_turn_omits_optional_fields() -> None:
+    """No previous id or system instruction keys when they are not given."""
+    fake = FakeInteractions(_interaction(output_text="ok"))
+
+    _client(fake).generate("hello")
+
+    assert "previous_interaction_id" not in fake.calls[0]
+    assert "system_instruction" not in fake.calls[0]
+
+
+def test_turn_without_prompt_or_tool_outputs_is_a_bug() -> None:
+    """Calling with nothing to send is a programming error, raised before any call."""
+    fake = FakeInteractions(_interaction(output_text="ok"))
+
+    with pytest.raises(ValueError, match="prompt or tool outputs"):
+        _client(fake).generate()
+
+    assert fake.calls == []
