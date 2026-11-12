@@ -6,7 +6,7 @@ one it is using.
 """
 
 from collections.abc import Sequence
-from typing import Protocol
+from typing import Any, Protocol
 
 from job_search_agent.llm.schemas import ModelResponse, ToolOutput, ToolSpec
 
@@ -22,6 +22,7 @@ class ModelClient(Protocol):
         system_instruction: str | None = None,
         previous_response_id: str | None = None,
         tool_outputs: Sequence[ToolOutput] = (),
+        response_schema: dict[str, Any] | None = None,
     ) -> ModelResponse:
         """Send one turn to the model and return its reply.
 
@@ -34,6 +35,8 @@ class ModelClient(Protocol):
             system_instruction: Rules for the model. Must be re-sent every turn.
             previous_response_id: Continue from this earlier reply.
             tool_outputs: Results of the model's previous tool calls.
+            response_schema: If given, the reply text must be JSON matching
+                this schema (structured output).
 
         Raises:
             ModelError: Any subclass, when the call fails.

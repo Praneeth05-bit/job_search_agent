@@ -7,6 +7,7 @@ and records every turn it was sent so tests can inspect it.
 
 from collections import deque
 from collections.abc import Sequence
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
@@ -24,6 +25,7 @@ class RecordedTurn(BaseModel):
     system_instruction: str | None
     previous_response_id: str | None
     tool_outputs: list[ToolOutput]
+    response_schema: dict[str, Any] | None
 
 
 class MockModelClient:
@@ -61,6 +63,7 @@ class MockModelClient:
         system_instruction: str | None = None,
         previous_response_id: str | None = None,
         tool_outputs: Sequence[ToolOutput] = (),
+        response_schema: dict[str, Any] | None = None,
     ) -> ModelResponse:
         """Record the turn, then return or raise the next scripted item."""
         self.turns.append(
@@ -70,6 +73,7 @@ class MockModelClient:
                 system_instruction=system_instruction,
                 previous_response_id=previous_response_id,
                 tool_outputs=list(tool_outputs),
+                response_schema=response_schema,
             )
         )
 

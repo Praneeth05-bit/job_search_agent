@@ -12,6 +12,7 @@ Waits grow exponentially (1s, 2s, 4s, ...), are capped, and get a small random
 import random
 import time
 from collections.abc import Callable, Sequence
+from typing import Any
 
 from job_search_agent.llm.client import ModelClient
 from job_search_agent.llm.errors import ModelError
@@ -117,6 +118,7 @@ class RetryingModelClient:
         system_instruction: str | None = None,
         previous_response_id: str | None = None,
         tool_outputs: Sequence[ToolOutput] = (),
+        response_schema: dict[str, Any] | None = None,
     ) -> ModelResponse:
         """Call the wrapped client, retrying temporary failures."""
         return call_with_retries(
@@ -126,6 +128,7 @@ class RetryingModelClient:
                 system_instruction=system_instruction,
                 previous_response_id=previous_response_id,
                 tool_outputs=tool_outputs,
+                response_schema=response_schema,
             ),
             max_retries=self._max_retries,
             base_delay_seconds=self._base_delay_seconds,

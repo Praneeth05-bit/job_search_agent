@@ -271,3 +271,78 @@ def test_turn_without_prompt_or_tool_outputs_is_a_bug() -> None:
         _client(fake).generate()
 
     assert fake.calls == []
+
+
+# ---------------------------------------------------------------------------
+# Provider messages
+# ---------------------------------------------------------------------------
+
+
+class FakeInteractionsServerError(Exception):
+    """Mimics the Interactions client's error: status code plus a JSON body."""
+
+    def __init__(self, status_code: int, message: str) -> None:
+        super().__init__(f"Error code: {status_code}")
+        self.status_code = status_code
+        self.body = {"error": {"message": message, "code": "service_unavailable"}}
+
+
+def test_provider_message_from_body_is_kept_in_details() -> None:
+    """The 'high demand' explanation from Google reaches our logs."""
+    error = FakeInteractionsServerError(
+        503, "gemini-3.6-flash is currently experiencing high demand."
+    )
+
+    translated = translate_error(error)
+
+    assert isinstance(translated, ModelUnavailableError)
+    assert str(translated) == (
+        "Gemini server error (HTTP 503): "
+        "gemini-3.6-flash is currently experiencing high demand."
+    )
+    assert translated.user_message.startswith("The AI model is busy right now")
+
+
+def test_provider_message_attribute_is_used_and_flattened() -> None:
+    """Errors with a .message attribute work too; long text is one line, capped."""
+    error = FakeHTTPError(429)
+    error.message = "Too many\nrequests " + "x" * 500  # type: ignore[attr-defined]
+
+    translated = translate_error(error)
+
+    assert translated is not None
+    detail = str(translated).split(": ", 1)[1]
+    assert "\n" not in detail
+    assert len(detail) <= 200
+
+
+def test_auth_error_never_echoes_provider_text() -> None:
+    """Auth failures keep a fixed message, so nothing sensitive is repeated."""
+    error = FakeHTTPError(401)
+    error.message = "API key AIza-secret is invalid"  # type: ignore[attr-defined]
+
+    translated = translate_error(error)
+
+    assert "AIza-secret" not in str(translated)
+
+
+def test_response_schema_requests_json_output() -> None:
+    """Structured output uses the response_format shape verified in preflight."""
+    fake = FakeInteractions(_interaction(output_text='{"summary": "ok"}'))
+    schema = {"type": "object", "properties": {"summary": {"type": "string"}}}
+
+    _client(fake).generate("answer as JSON", response_schema=schema)
+
+    assert fake.calls[0]["response_format"] == {
+        "type": "text",
+        "mime_type": "application/json",
+        "schema": schema,
+    }
+
+
+def test_no_response_format_without_schema() -> None:
+    fake = FakeInteractions(_interaction(output_text="ok"))
+
+    _client(fake).generate("hello")
+
+    assert "response_format" not in fake.calls[0]

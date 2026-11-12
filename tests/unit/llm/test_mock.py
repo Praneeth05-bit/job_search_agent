@@ -120,3 +120,35 @@ def test_records_multi_turn_details() -> None:
     assert turn.previous_response_id == "r1"
     assert turn.tool_outputs == [output]
     assert turn.tools == [SEARCH_TOOL]
+
+
+@pytest.mark.parametrize(
+    "error_class",
+    [
+        ModelError,
+        ModelTimeoutError,
+        ModelRateLimitError,
+        ModelUnavailableError,
+        ModelAuthError,
+        ModelResponseError,
+    ],
+)
+def test_every_error_has_a_friendly_user_message(
+    error_class: type[ModelError],
+) -> None:
+    """Users get plain language, never codes or configuration hints."""
+    message = error_class.user_message
+
+    assert message.endswith(".")
+    assert "HTTP" not in message
+    assert "GEMINI_API_KEY" not in message
+
+
+def test_records_response_schema() -> None:
+    """Tests can check that the final turn asked for structured output."""
+    mock = MockModelClient([ModelResponse(text="{}")])
+    schema = {"type": "object"}
+
+    mock.generate("final answer", response_schema=schema)
+
+    assert mock.turns[0].response_schema == schema

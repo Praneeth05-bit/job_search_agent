@@ -68,6 +68,7 @@ class GeminiClient:
         system_instruction: str | None = None,
         previous_response_id: str | None = None,
         tool_outputs: Sequence[ToolOutput] = (),
+        response_schema: dict[str, Any] | None = None,
     ) -> ModelResponse:
         """Send one turn to Gemini and return a provider-neutral response.
 
@@ -85,6 +86,13 @@ class GeminiClient:
             request["system_instruction"] = system_instruction
         if previous_response_id:
             request["previous_interaction_id"] = previous_response_id
+        if response_schema is not None:
+            # Same shape the preflight smoke test verified on google-genai 2.24.0.
+            request["response_format"] = {
+                "type": "text",
+                "mime_type": "application/json",
+                "schema": response_schema,
+            }
 
         started = time.perf_counter()
         try:
@@ -142,15 +150,47 @@ def _status_code(exc: BaseException) -> int | None:
     return value if isinstance(value, int) else None
 
 
+_MAX_PROVIDER_MESSAGE_CHARS = 200
+
+
+def _provider_message(exc: BaseException) -> str | None:
+    """Extract the provider's short human-readable message, if it has one.
+
+    Checks the error body (``{"error": {"message": ...}}``) first, then a
+    ``message`` attribute. The text is flattened to one line and truncated.
+    """
+    body = getattr(exc, "body", None)
+    message: object = None
+    if isinstance(body, dict):
+        error = body.get("error")
+        if isinstance(error, dict):
+            message = error.get("message")
+    if not isinstance(message, str):
+        message = getattr(exc, "message", None)
+    if not isinstance(message, str) or not message.strip():
+        return None
+    one_line = " ".join(message.split())
+    return one_line[:_MAX_PROVIDER_MESSAGE_CHARS]
+
+
+def _with_detail(summary: str, exc: BaseException) -> str:
+    """Append the provider's message to our summary when one is available."""
+    detail = _provider_message(exc)
+    return f"{summary}: {detail}" if detail else summary
+
+
 def translate_error(exc: BaseException) -> ModelError | None:
     """Map a provider exception to one of our ModelError types.
 
     Returns None for exceptions that are not provider problems, so the caller
-    can re-raise them unchanged. Messages never include request content or
-    credentials.
+    can re-raise them unchanged. The technical message includes the
+    provider's own short explanation (for example "high demand") when
+    available, but never request content or credentials.
 
     Timeout and connection errors are recognised by class name because the
     SDK may use either the ``httpx`` or ``httpx2`` package underneath.
+    Status codes are read from the exception, which works for both
+    ``google.genai.errors`` and the Interactions client's own errors.
     """
     name = type(exc).__name__.lower()
     if isinstance(exc, TimeoutError) or "timeout" in name:
@@ -163,12 +203,18 @@ def translate_error(exc: BaseException) -> ModelError | None:
                 f"Gemini rejected the API key (HTTP {status}); check GEMINI_API_KEY"
             )
         if status == 429:
-            return ModelRateLimitError("Gemini rate limit reached (HTTP 429)")
+            return ModelRateLimitError(
+                _with_detail("Gemini rate limit reached (HTTP 429)", exc)
+            )
         if status == 408:
             return ModelTimeoutError("Gemini request timed out (HTTP 408)")
         if status >= 500:
-            return ModelUnavailableError(f"Gemini server error (HTTP {status})")
-        return ModelResponseError(f"Gemini rejected the request (HTTP {status})")
+            return ModelUnavailableError(
+                _with_detail(f"Gemini server error (HTTP {status})", exc)
+            )
+        return ModelResponseError(
+            _with_detail(f"Gemini rejected the request (HTTP {status})", exc)
+        )
 
     if "connect" in name or "network" in name or "transport" in name:
         return ModelUnavailableError("Could not reach Gemini (network error)")
