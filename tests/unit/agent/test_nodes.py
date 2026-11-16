@@ -2,9 +2,10 @@
 
 from datetime import date
 
-from agent_helpers import TODAY, answer, search_request
+from agent_helpers import TODAY, answer, json_answer, search_request
 
 from job_search_agent.agent.nodes import (
+    INVALID_ANSWER_MESSAGE,
     LIMIT_MESSAGE,
     AgentDependencies,
     AgentNodes,
@@ -14,6 +15,7 @@ from job_search_agent.domain.models import Opportunity, StudentProfile
 from job_search_agent.llm.mock import MockModelClient
 from job_search_agent.llm.schemas import ModelResponse, ToolCall, ToolOutput
 from job_search_agent.prompts.loader import load_prompt
+from job_search_agent.tools.search_tool import ToolResult, run_search_tool
 
 
 def _nodes(
@@ -47,9 +49,9 @@ def test_router_runs_tools_when_requested_and_under_limit(
     assert _nodes(records).route_after_model(state) == "run_tools"
 
 
-def test_router_finishes_on_text_answer(records: list[Opportunity]) -> None:
+def test_router_composes_when_model_is_done(records: list[Opportunity]) -> None:
     state: AgentState = {"last_response": answer("done"), "tool_calls_made": 1}
-    assert _nodes(records).route_after_model(state) == "finish"
+    assert _nodes(records).route_after_model(state) == "compose"
 
 
 def test_router_finishes_when_limit_reached(records: list[Opportunity]) -> None:
@@ -202,19 +204,100 @@ def test_missing_call_id_gets_a_fallback(
 
 
 # ---------------------------------------------------------------------------
-# finish
+# compose and finish
 # ---------------------------------------------------------------------------
 
 
-def test_finish_records_completed_answer(records: list[Opportunity]) -> None:
-    update = _nodes(records).finish(
-        {"last_response": answer("You qualify for opp-006.")}
-    )
+def _search_results(
+    records: list[Opportunity], profile: StudentProfile
+) -> list[ToolResult]:
+    """A real 'python' search: matches opp-003/006, excludes opp-001/002."""
+    call = ToolCall(id="c1", name="search_opportunities", arguments={"text": "python"})
+    return [run_search_tool(call, profile=profile, opportunities=records, today=TODAY)]
 
-    assert update == {
-        "stop_reason": "completed",
-        "final_answer": "You qualify for opp-006.",
+
+def test_compose_accepts_grounded_answer(
+    records: list[Opportunity], profile: StudentProfile
+) -> None:
+    mock = MockModelClient([json_answer("opp-006", "opp-003")])
+    state: AgentState = {
+        "last_response": answer("done", response_id="r2"),
+        "tool_results": _search_results(records, profile),
+        "model_calls_made": 2,
     }
+
+    update = _nodes(records, mock).compose(state)
+
+    assert update["stop_reason"] == "completed"
+    assert update["final_answer"] == "Here are your matches."
+    assert [m.opportunity_id for m in update["answer"].matches] == [
+        "opp-006",
+        "opp-003",
+    ]
+    assert update["model_calls_made"] == 3
+
+
+def test_compose_asks_for_json_without_tools(
+    records: list[Opportunity], profile: StudentProfile
+) -> None:
+    """The compose turn continues the conversation and requires the schema."""
+    mock = MockModelClient([json_answer("opp-006")])
+    state: AgentState = {
+        "last_response": answer("done", response_id="r2"),
+        "tool_results": _search_results(records, profile),
+    }
+
+    _nodes(records, mock).compose(state)
+
+    turn = mock.turns[0]
+    assert turn.previous_response_id == "r2"
+    assert turn.response_schema is not None
+    assert "summary" in turn.response_schema["properties"]
+    assert turn.tools == []
+    assert turn.system_instruction == load_prompt("search_agent", 1).text
+
+
+def test_compose_repairs_an_excluded_recommendation(
+    records: list[Opportunity], profile: StudentProfile
+) -> None:
+    """First reply recommends ineligible opp-001; the problem goes back once."""
+    mock = MockModelClient(
+        [
+            json_answer("opp-001", response_id="bad"),
+            json_answer("opp-006", response_id="fixed"),
+        ]
+    )
+    state: AgentState = {
+        "last_response": answer("done"),
+        "tool_results": _search_results(records, profile),
+        "model_calls_made": 2,
+    }
+
+    update = _nodes(records, mock).compose(state)
+
+    repair_turn = mock.turns[1]
+    assert repair_turn.previous_response_id == "bad"
+    assert "opp-001 was excluded as ineligible" in repair_turn.prompt
+    assert update["stop_reason"] == "completed"
+    assert update["model_calls_made"] == 4
+
+
+def test_compose_gives_up_after_one_failed_repair(
+    records: list[Opportunity], profile: StudentProfile
+) -> None:
+    """Two bad replies: no bad answer is shown, and no third attempt is made."""
+    mock = MockModelClient([json_answer("opp-099"), json_answer("opp-099")])
+    state: AgentState = {
+        "last_response": answer("done"),
+        "tool_results": _search_results(records, profile),
+    }
+
+    update = _nodes(records, mock).compose(state)
+
+    assert update["stop_reason"] == "invalid_answer"
+    assert update["answer"] is None
+    assert update["final_answer"] == INVALID_ANSWER_MESSAGE
+    assert len(mock.turns) == 2
 
 
 def test_finish_reports_tool_limit(records: list[Opportunity]) -> None:
@@ -223,4 +306,5 @@ def test_finish_reports_tool_limit(records: list[Opportunity]) -> None:
     )
 
     assert update["stop_reason"] == "tool_limit"
+    assert update["answer"] is None
     assert "limit of 5 searches" in update["final_answer"]

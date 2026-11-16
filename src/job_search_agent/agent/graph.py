@@ -8,7 +8,8 @@ against the LangGraph StateGraph reference on 2026-11-10:
 
 Graph:
     START -> call_model -(router)-> run_tools -> call_model ...
-                        \\-> finish -> END
+                        |-> compose -> END   (structured, checked answer)
+                        \\-> finish  -> END   (tool limit reached)
 """
 
 from collections.abc import Sequence
@@ -18,6 +19,7 @@ from typing import Any
 from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel, ConfigDict
 
+from job_search_agent.agent.answer import AgentAnswer
 from job_search_agent.agent.nodes import AgentDependencies, AgentNodes
 from job_search_agent.agent.state import AgentState, StopReason
 from job_search_agent.domain.models import Opportunity, StudentProfile
@@ -34,6 +36,7 @@ class AgentRun(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
+    answer: AgentAnswer | None  # structured answer; None if the run did not complete
     final_answer: str
     stop_reason: StopReason
     tool_results: list[ToolResult]
@@ -49,15 +52,17 @@ def build_agent(deps: AgentDependencies) -> Any:
     graph = StateGraph(AgentState)
     graph.add_node("call_model", nodes.call_model)
     graph.add_node("run_tools", nodes.run_tools)
+    graph.add_node("compose", nodes.compose)
     graph.add_node("finish", nodes.finish)
 
     graph.add_edge(START, "call_model")
     graph.add_conditional_edges(
         "call_model",
         nodes.route_after_model,
-        {"run_tools": "run_tools", "finish": "finish"},
+        {"run_tools": "run_tools", "compose": "compose", "finish": "finish"},
     )
     graph.add_edge("run_tools", "call_model")
+    graph.add_edge("compose", END)
     graph.add_edge("finish", END)
 
     return graph.compile()
@@ -98,11 +103,12 @@ def run_agent(
         "tool_calls_made": 0,
         "model_calls_made": 0,
     }
-    # Worst case: one model call per tool call, plus the first call and finish.
+    # Worst case: one model call per tool call, plus the first call and the end node.
     recursion_limit = 2 * max_tool_calls + 5
     final = agent.invoke(initial, config={"recursion_limit": recursion_limit})
 
     return AgentRun(
+        answer=final.get("answer"),
         final_answer=final["final_answer"],
         stop_reason=final["stop_reason"],
         tool_results=final["tool_results"],

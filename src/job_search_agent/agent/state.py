@@ -12,11 +12,12 @@ a run starts. The model never writes to them.
 import operator
 from typing import Annotated, Literal, TypedDict
 
+from job_search_agent.agent.answer import AgentAnswer
 from job_search_agent.domain.models import StudentProfile
 from job_search_agent.llm.schemas import ModelResponse, ToolOutput
 from job_search_agent.tools.search_tool import ToolResult
 
-StopReason = Literal["completed", "tool_limit"]
+StopReason = Literal["completed", "tool_limit", "invalid_answer"]
 
 
 class AgentState(TypedDict, total=False):
@@ -33,6 +34,7 @@ class AgentState(TypedDict, total=False):
     tool_calls_made: int
     model_calls_made: int
 
-    # Set by the finish node.
-    final_answer: str
+    # Set by the compose or finish node.
+    answer: AgentAnswer | None  # the validated, grounded structured answer
+    final_answer: str  # short text for display: the answer's summary or a fallback
     stop_reason: StopReason

@@ -43,6 +43,14 @@ def print_run(request: str, run: AgentRun) -> None:
 
     print("\nFinal answer:")
     print(run.final_answer)
+    if run.answer is None:
+        return
+    for match in run.answer.matches:
+        print(f"\n  #{match.rank} {match.opportunity_id}: {match.why}")
+        for caveat in match.caveats:
+            print(f"     caveat: {caveat}")
+    if run.answer.clarifying_question:
+        print(f"\n  Question: {run.answer.clarifying_question}")
 
 
 def main() -> int:
@@ -63,7 +71,8 @@ def main() -> int:
             max_tool_calls=settings.max_tool_calls,
         )
     except ModelError as exc:
-        print(f"Model error ({type(exc).__name__}): {exc}")
+        print(exc.user_message)  # what a student would see
+        print(f"  details: {type(exc).__name__}: {exc}")  # for you, the developer
         return 1
 
     print_run(request, run)

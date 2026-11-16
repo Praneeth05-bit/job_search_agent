@@ -5,13 +5,18 @@ only the fields it changes, so nodes can be unit-tested directly. graph.py
 wires them together.
 
 Flow:
-    call_model -> (router) -> run_tools -> call_model -> ... -> finish
+    call_model -> (router) -> run_tools -> call_model -> ...
+                           -> compose  (model is done searching)
+                           -> finish   (tool limit reached)
 
 Guards enforced in code, not in the prompt:
     * At most ``max_tool_calls`` tool calls per run. Calls beyond the limit
       are not run; the model is told the limit was reached.
     * The profile, data, and date come from our dependencies, never from the
       model's tool arguments.
+    * The final answer must be valid JSON in the AgentAnswer shape and cite
+      only opportunities the search tool matched in this run. The model gets
+      one repair attempt; after that the run stops with "invalid_answer".
 """
 
 from collections.abc import Sequence
@@ -19,6 +24,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Any, Literal
 
+from job_search_agent.agent.answer import AgentAnswer, parse_answer
 from job_search_agent.agent.state import AgentState
 from job_search_agent.domain.models import Opportunity
 from job_search_agent.llm.client import ModelClient
@@ -26,15 +32,31 @@ from job_search_agent.llm.schemas import ModelResponse, ToolCall, ToolOutput
 from job_search_agent.prompts.loader import Prompt
 from job_search_agent.tools.search_tool import (
     ToolResult,
+    model_facing_schema,
     run_search_tool,
     search_tool_spec,
 )
 
-Route = Literal["run_tools", "finish"]
+Route = Literal["run_tools", "compose", "finish"]
 
 LIMIT_MESSAGE = (
     "Tool call limit reached. Do not request more tools. "
     "Answer using the results you already have."
+)
+
+COMPOSE_INSTRUCTION = (
+    "Now write your final answer for the student as JSON matching the provided "
+    "schema. Rank only opportunities that appear under 'matches' in the search "
+    "results, best first, and never include excluded ones. In 'why', explain "
+    "each match using the search results. Put eligibility notes the student "
+    "should verify in 'caveats'. If nothing fits, return an empty 'matches' "
+    "list and say so in 'summary'. If you need more information from the "
+    "student, set 'clarifying_question'."
+)
+
+INVALID_ANSWER_MESSAGE = (
+    "Sorry, I could not put together a reliable answer this time. "
+    "Please try again or rephrase your request."
 )
 
 
@@ -63,12 +85,23 @@ def first_turn_input(request: str) -> str:
     )
 
 
+def repair_instruction(problems: Sequence[str]) -> str:
+    """The text sent to the model when its JSON answer failed a check."""
+    listed = "\n".join(f"- {problem}" for problem in problems)
+    return (
+        "Your answer could not be used because of these problems:\n"
+        f"{listed}\n"
+        "Return corrected JSON matching the schema."
+    )
+
+
 class AgentNodes:
     """The agent's steps, bound to one set of dependencies."""
 
     def __init__(self, deps: AgentDependencies) -> None:
         self._deps = deps
         self._tools = [search_tool_spec()]
+        self._answer_schema = model_facing_schema(AgentAnswer)
 
     def call_model(self, state: AgentState) -> dict[str, Any]:
         """Ask the model what to do next: call a tool, or answer.
@@ -148,35 +181,79 @@ class AgentNodes:
     def route_after_model(self, state: AgentState) -> Route:
         """Decide the next step after the model replies.
 
-        Tools run only if the model asked for them and calls remain.
-        Otherwise the run finishes.
+        * The model wants tools and calls remain: run them.
+        * The model wants tools but the limit is reached: finish.
+        * The model is done searching: compose the structured answer.
         """
         response = state.get("last_response")
         made = state.get("tool_calls_made", 0)
-        if (
-            response is not None
-            and response.wants_tools
-            and made < self._deps.max_tool_calls
-        ):
-            return "run_tools"
-        return "finish"
+        if response is not None and response.wants_tools:
+            if made < self._deps.max_tool_calls:
+                return "run_tools"
+            return "finish"
+        return "compose"
+
+    def compose(self, state: AgentState) -> dict[str, Any]:
+        """Ask for the final answer as JSON, check it, and allow one repair.
+
+        The answer must pass the schema check and the grounding check (only
+        opportunities the search tool matched in this run). If the first
+        reply fails, the problems are sent back once. A second failure ends
+        the run with ``invalid_answer`` instead of showing a bad answer.
+        """
+        previous = state.get("last_response")
+        tool_results = state.get("tool_results", [])
+        calls = 0
+
+        response = self._ask_for_json(
+            COMPOSE_INSTRUCTION, previous.response_id if previous else None
+        )
+        calls += 1
+        answer, problems = parse_answer(response.text, tool_results)
+
+        if answer is None:
+            response = self._ask_for_json(
+                repair_instruction(problems), response.response_id
+            )
+            calls += 1
+            answer, problems = parse_answer(response.text, tool_results)
+
+        update: dict[str, Any] = {
+            "last_response": response,
+            "model_calls_made": state.get("model_calls_made", 0) + calls,
+        }
+        if answer is None:
+            update.update(
+                answer=None,
+                final_answer=INVALID_ANSWER_MESSAGE,
+                stop_reason="invalid_answer",
+            )
+        else:
+            update.update(
+                answer=answer,
+                final_answer=answer.summary,
+                stop_reason="completed",
+            )
+        return update
+
+    def _ask_for_json(
+        self, instruction: str, previous_response_id: str | None
+    ) -> ModelResponse:
+        """One structured-output turn: no tools, the answer schema required."""
+        return self._deps.model.generate(
+            instruction,
+            system_instruction=self._deps.prompt.text,
+            previous_response_id=previous_response_id,
+            response_schema=self._answer_schema,
+        )
 
     def finish(self, state: AgentState) -> dict[str, Any]:
-        """Record the final answer and why the run stopped."""
-        response = state.get("last_response")
-        if response is not None and response.wants_tools:
-            return {
-                "stop_reason": "tool_limit",
-                "final_answer": (
-                    f"I reached the limit of {self._deps.max_tool_calls} searches "
-                    "before finishing. Please try a more specific request."
-                ),
-            }
-        return {"stop_reason": "completed", "final_answer": _text_of(response)}
-
-
-def _text_of(response: ModelResponse | None) -> str:
-    """The model's final text, or an empty string if there is none."""
-    if response is None or response.text is None:
-        return ""
-    return response.text
+        """End the run when the tool-call limit stopped the model."""
+        return {
+            "answer": None,
+            "stop_reason": "tool_limit",
+            "final_answer": (
+                f"I reached the limit of {self._deps.max_tool_calls} searches "
+                "before finishing. Please try a more specific request."
+            ),
+        }

@@ -1,11 +1,11 @@
 """End-to-end agent runs through the real LangGraph graph, with a mock model.
 
 The model is scripted; everything else is real: tool validation, search,
-eligibility, routing, limits, and the conversation flow.
+eligibility, routing, limits, the conversation flow, and the answer checks.
 """
 
 import pytest
-from agent_helpers import TODAY, answer, search_request
+from agent_helpers import TODAY, answer, json_answer, search_request
 
 from job_search_agent.agent.graph import AgentRun, run_agent
 from job_search_agent.domain.models import Opportunity, StudentProfile
@@ -30,34 +30,40 @@ def _run(
     )
 
 
-def test_search_then_answer(
+def test_search_then_structured_answer(
     profile: StudentProfile, records: list[Opportunity]
 ) -> None:
-    """The normal loop: model asks, our code searches, model answers."""
+    """The full flow: search, model is done, compose a checked JSON answer."""
     mock = MockModelClient(
         [
             search_request("c1", "r1", text="python"),
-            answer("You are eligible for opp-003 and opp-006."),
+            answer("Done searching."),
+            json_answer("opp-006", "opp-003", summary="Two internships fit."),
         ]
     )
 
     run = _run(mock, profile, records)
 
     assert run.stop_reason == "completed"
-    assert run.final_answer == "You are eligible for opp-003 and opp-006."
+    assert run.final_answer == "Two internships fit."
+    assert run.answer is not None
+    assert [m.opportunity_id for m in run.answer.matches] == ["opp-006", "opp-003"]
     assert run.tool_calls_made == 1
-    assert run.model_calls_made == 2
+    assert run.model_calls_made == 3
     assert run.prompt_id == "search_agent@v1"
-    report = run.tool_results[0].report
-    assert report is not None
-    assert [m.search.opportunity_id for m in report.matches] == ["opp-003", "opp-006"]
 
 
 def test_rules_and_results_reach_the_model_on_turn_two(
     profile: StudentProfile, records: list[Opportunity]
 ) -> None:
     """Turn 2 continues turn 1, carries the result, and re-sends the rules."""
-    mock = MockModelClient([search_request("c1", "r1", text="python"), answer("done")])
+    mock = MockModelClient(
+        [
+            search_request("c1", "r1", text="python"),
+            answer("done"),
+            json_answer("opp-006"),
+        ]
+    )
 
     _run(mock, profile, records)
 
@@ -68,27 +74,77 @@ def test_rules_and_results_reach_the_model_on_turn_two(
     assert turn_two.system_instruction == mock.turns[0].system_instruction
 
 
-def test_answer_without_tools(
+def test_ineligible_recommendation_is_repaired(
     profile: StudentProfile, records: list[Opportunity]
 ) -> None:
-    """A clarifying question needs no search."""
-    mock = MockModelClient([answer("Which field are you interested in?")])
+    """opp-001 (deadline passed) is caught and fixed before the student sees it."""
+    mock = MockModelClient(
+        [
+            search_request("c1", "r1", text="python"),
+            answer("done"),
+            json_answer("opp-001", response_id="bad"),
+            json_answer("opp-006", response_id="fixed"),
+        ]
+    )
+
+    run = _run(mock, profile, records)
+
+    assert run.stop_reason == "completed"
+    assert run.answer is not None
+    assert [m.opportunity_id for m in run.answer.matches] == ["opp-006"]
+    assert run.model_calls_made == 4
+
+
+def test_unrepairable_answer_is_never_shown(
+    profile: StudentProfile, records: list[Opportunity]
+) -> None:
+    mock = MockModelClient(
+        [
+            search_request("c1", "r1", text="python"),
+            answer("done"),
+            json_answer("opp-099"),
+            json_answer("opp-099"),
+        ]
+    )
+
+    run = _run(mock, profile, records)
+
+    assert run.stop_reason == "invalid_answer"
+    assert run.answer is None
+    assert "could not put together a reliable answer" in run.final_answer
+
+
+def test_clarifying_question_without_tools(
+    profile: StudentProfile, records: list[Opportunity]
+) -> None:
+    """An unclear request: no search, a structured clarifying question."""
+    mock = MockModelClient(
+        [
+            answer("I need more detail."),
+            json_answer(
+                summary="I need a bit more detail.",
+                clarifying_question="Which field are you interested in?",
+            ),
+        ]
+    )
 
     run = _run(mock, profile, records)
 
     assert run.tool_calls_made == 0
-    assert run.final_answer == "Which field are you interested in?"
+    assert run.answer is not None
+    assert run.answer.clarifying_question == "Which field are you interested in?"
 
 
 def test_self_correction_after_invalid_arguments(
     profile: StudentProfile, records: list[Opportunity]
 ) -> None:
-    """The error goes back to the model, which fixes its call."""
+    """A tool error goes back to the model, which fixes its call."""
     mock = MockModelClient(
         [
             search_request("c1", "r1", text="python", limit=500),
             search_request("c2", "r2", text="python", limit=10),
-            answer("Found opp-003 and opp-006."),
+            answer("done"),
+            json_answer("opp-003", "opp-006"),
         ]
     )
 
@@ -109,6 +165,7 @@ def test_unknown_tool_is_refused(
                 tool_calls=[ToolCall(id="c1", name="delete_all_jobs", arguments={})],
             ),
             answer("Sorry, I can only search."),
+            json_answer(summary="I can only search for opportunities."),
         ]
     )
 
@@ -116,6 +173,7 @@ def test_unknown_tool_is_refused(
 
     assert run.tool_results[0].ok is False
     assert run.tool_results[0].report is None
+    assert run.stop_reason == "completed"
 
 
 def test_tool_limit_stops_a_looping_model(
@@ -128,10 +186,9 @@ def test_tool_limit_stops_a_looping_model(
     run = _run(mock, profile, records, max_tool_calls=3)
 
     assert run.stop_reason == "tool_limit"
+    assert run.answer is None
     assert run.tool_calls_made == 3
-    assert (
-        run.model_calls_made == 4
-    )  # 3 searches answered, then the 4th request is cut off
+    assert run.model_calls_made == 4
 
 
 def test_model_failure_propagates(
