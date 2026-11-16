@@ -2,19 +2,23 @@
 
 from datetime import date
 
+import pytest
 from agent_helpers import TODAY, answer, json_answer, search_request
 
+from job_search_agent.agent.answer import AgentAnswer
 from job_search_agent.agent.nodes import (
     INVALID_ANSWER_MESSAGE,
     LIMIT_MESSAGE,
     AgentDependencies,
     AgentNodes,
+    AskApproval,
 )
 from job_search_agent.agent.state import AgentState
 from job_search_agent.domain.models import Opportunity, StudentProfile
 from job_search_agent.llm.mock import MockModelClient
 from job_search_agent.llm.schemas import ModelResponse, ToolCall, ToolOutput
 from job_search_agent.prompts.loader import load_prompt
+from job_search_agent.storage.tracker import InMemoryTracker
 from job_search_agent.tools.search_tool import ToolResult, run_search_tool
 
 
@@ -23,6 +27,9 @@ def _nodes(
     mock: MockModelClient | None = None,
     max_tool_calls: int = 5,
     today: date = TODAY,
+    tracker: InMemoryTracker | None = None,
+    decision: object = True,
+    ask: AskApproval | None = None,
 ) -> AgentNodes:
     deps = AgentDependencies(
         model=mock or MockModelClient([]),
@@ -30,6 +37,8 @@ def _nodes(
         today=today,
         prompt=load_prompt("search_agent", 1),
         max_tool_calls=max_tool_calls,
+        tracker=tracker or InMemoryTracker(),
+        ask_approval=ask or (lambda proposal: decision),
     )
     return AgentNodes(deps)
 
@@ -308,3 +317,86 @@ def test_finish_reports_tool_limit(records: list[Opportunity]) -> None:
     assert update["stop_reason"] == "tool_limit"
     assert update["answer"] is None
     assert "limit of 5 searches" in update["final_answer"]
+
+
+# ---------------------------------------------------------------------------
+# Approval and saving
+# ---------------------------------------------------------------------------
+
+
+def _answered_state(*ids: str) -> AgentState:
+    text = json_answer(*ids).text
+    assert text is not None
+    return {"answer": AgentAnswer.model_validate_json(text)}
+
+
+def test_approval_is_requested_only_when_there_are_matches(
+    records: list[Opportunity],
+) -> None:
+    nodes = _nodes(records)
+
+    assert nodes.route_after_compose(_answered_state("opp-006")) == "request_approval"
+    assert nodes.route_after_compose(_answered_state()) == "end"
+    assert nodes.route_after_compose({"answer": None}) == "end"
+
+
+def test_approval_request_shows_the_proposed_ids(records: list[Opportunity]) -> None:
+    seen: list[dict[str, object]] = []
+
+    def record(proposal: dict[str, object]) -> bool:
+        seen.append(proposal)
+        return True
+
+    _nodes(records, ask=record).request_approval(_answered_state("opp-006", "opp-003"))
+
+    assert seen == [
+        {"action": "save_shortlist", "opportunity_ids": ["opp-006", "opp-003"]}
+    ]
+
+
+@pytest.mark.parametrize(
+    ("decision", "approved"),
+    [(True, True), (False, False), ("yes", False), (None, False), (1, False)],
+)
+def test_only_an_explicit_true_counts_as_approval(
+    records: list[Opportunity], decision: object, approved: bool
+) -> None:
+    """Anything other than exactly True is treated as "no"."""
+    update = _nodes(records, decision=decision).request_approval(
+        _answered_state("opp-006")
+    )
+
+    assert update == {"approved": approved}
+
+
+def test_route_after_approval(records: list[Opportunity]) -> None:
+    nodes = _nodes(records)
+
+    assert nodes.route_after_approval({"approved": True}) == "save_shortlist"
+    assert nodes.route_after_approval({"approved": False}) == "end"
+    assert nodes.route_after_approval({}) == "end"
+
+
+def test_save_writes_approved_matches(records: list[Opportunity]) -> None:
+    tracker = InMemoryTracker()
+    state = _answered_state("opp-006", "opp-003")
+    state["approved"] = True
+
+    update = _nodes(records, tracker=tracker).save_shortlist(state)
+
+    assert update == {"saved_ids": ["opp-006", "opp-003"]}
+    saved = {e.opportunity_id: e for e in tracker.entries()}
+    assert saved["opp-006"].rank == 1
+    assert saved["opp-006"].saved_on == TODAY
+
+
+def test_save_refuses_without_approval(records: list[Opportunity]) -> None:
+    """Defensive check: even if called directly, nothing is saved unapproved."""
+    tracker = InMemoryTracker()
+    state = _answered_state("opp-006")
+    state["approved"] = False
+
+    update = _nodes(records, tracker=tracker).save_shortlist(state)
+
+    assert update == {"saved_ids": []}
+    assert tracker.entries() == []

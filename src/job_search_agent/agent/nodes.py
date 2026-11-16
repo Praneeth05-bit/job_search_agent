@@ -8,6 +8,7 @@ Flow:
     call_model -> (router) -> run_tools -> call_model -> ...
                            -> compose  (model is done searching)
                            -> finish   (tool limit reached)
+    compose -> request_approval (pause) -> save_shortlist (only if approved)
 
 Guards enforced in code, not in the prompt:
     * At most ``max_tool_calls`` tool calls per run. Calls beyond the limit
@@ -17,9 +18,11 @@ Guards enforced in code, not in the prompt:
     * The final answer must be valid JSON in the AgentAnswer shape and cite
       only opportunities the search tool matched in this run. The model gets
       one repair attempt; after that the run stops with "invalid_answer".
+    * Nothing is saved without the student's explicit approval. The approval
+      node pauses the run; only an approval of exactly ``True`` saves.
 """
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import date
 from typing import Any, Literal
@@ -30,6 +33,7 @@ from job_search_agent.domain.models import Opportunity
 from job_search_agent.llm.client import ModelClient
 from job_search_agent.llm.schemas import ModelResponse, ToolCall, ToolOutput
 from job_search_agent.prompts.loader import Prompt
+from job_search_agent.storage.tracker import Tracker, TrackerEntry
 from job_search_agent.tools.search_tool import (
     ToolResult,
     model_facing_schema,
@@ -38,6 +42,12 @@ from job_search_agent.tools.search_tool import (
 )
 
 Route = Literal["run_tools", "compose", "finish"]
+ApprovalRoute = Literal["request_approval", "end"]
+SaveRoute = Literal["save_shortlist", "end"]
+
+# Pauses the run and returns the decision given when it resumes. In the
+# graph this is LangGraph's interrupt(); tests pass a plain function.
+AskApproval = Callable[[dict[str, Any]], Any]
 
 LIMIT_MESSAGE = (
     "Tool call limit reached. Do not request more tools. "
@@ -69,6 +79,8 @@ class AgentDependencies:
     today: date
     prompt: Prompt
     max_tool_calls: int
+    tracker: Tracker
+    ask_approval: AskApproval
 
 
 def first_turn_input(request: str) -> str:
@@ -257,3 +269,47 @@ class AgentNodes:
                 "before finishing. Please try a more specific request."
             ),
         }
+
+    def route_after_compose(self, state: AgentState) -> ApprovalRoute:
+        """Ask for approval only when there is something to save."""
+        answer = state.get("answer")
+        if answer is not None and answer.matches:
+            return "request_approval"
+        return "end"
+
+    def request_approval(self, state: AgentState) -> dict[str, Any]:
+        """Pause and ask the student whether to save the recommended matches.
+
+        This node has no side effects before the pause, because LangGraph
+        runs it again from the start when the run resumes. Only a decision
+        of exactly ``True`` counts as approval; anything else is a "no".
+        """
+        answer = state.get("answer")
+        assert answer is not None, "request_approval requires an answer"
+        proposal = {
+            "action": "save_shortlist",
+            "opportunity_ids": [m.opportunity_id for m in answer.matches],
+        }
+        decision = self._deps.ask_approval(proposal)
+        return {"approved": decision is True}
+
+    def route_after_approval(self, state: AgentState) -> SaveRoute:
+        """Save only after an explicit approval."""
+        return "save_shortlist" if state.get("approved") is True else "end"
+
+    def save_shortlist(self, state: AgentState) -> dict[str, Any]:
+        """Write the approved matches to the tracker."""
+        answer = state.get("answer")
+        if state.get("approved") is not True or answer is None:
+            return {"saved_ids": []}  # defensive: never save without approval
+        entries = [
+            TrackerEntry(
+                opportunity_id=match.opportunity_id,
+                rank=match.rank,
+                why=match.why,
+                saved_on=self._deps.today,
+            )
+            for match in answer.matches
+        ]
+        self._deps.tracker.save(entries)
+        return {"saved_ids": [entry.opportunity_id for entry in entries]}

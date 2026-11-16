@@ -40,6 +40,7 @@ class Settings(BaseSettings):
 
     # Data.
     data_dir: Path = PROJECT_ROOT / "data" / "demo" / "opportunities"
+    tracker_path: Path = PROJECT_ROOT / "data" / "tracker" / "shortlist.json"
 
 
 @lru_cache

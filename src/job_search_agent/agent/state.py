@@ -38,3 +38,7 @@ class AgentState(TypedDict, total=False):
     answer: AgentAnswer | None  # the validated, grounded structured answer
     final_answer: str  # short text for display: the answer's summary or a fallback
     stop_reason: StopReason
+
+    # Set by the approval and save nodes.
+    approved: bool | None  # the student's decision; None until asked
+    saved_ids: list[str]  # opportunities written to the tracker

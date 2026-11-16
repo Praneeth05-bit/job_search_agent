@@ -21,3 +21,6 @@ Claude outputs/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Saved shortlists (personal, created when you approve)
+data/tracker/

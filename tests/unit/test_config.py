@@ -15,6 +15,7 @@ SETTING_NAMES = [
     "USE_MOCK_MODEL",
     "MAX_TOOL_CALLS",
     "DATA_DIR",
+    "TRACKER_PATH",
 ]
 
 
@@ -48,6 +49,14 @@ def test_default_data_dir_is_absolute_and_points_to_demo_data() -> None:
 
     assert settings.data_dir.is_absolute()
     assert settings.data_dir == PROJECT_ROOT / "data" / "demo" / "opportunities"
+
+
+def test_default_tracker_path_is_absolute() -> None:
+    """Approved shortlists are saved inside the project's data folder."""
+    settings = Settings()
+
+    assert settings.tracker_path.is_absolute()
+    assert settings.tracker_path == PROJECT_ROOT / "data" / "tracker" / "shortlist.json"
 
 
 def test_environment_variable_overrides_default(

@@ -1,8 +1,11 @@
 """Run the agent once against real Gemini and print what happened.
 
 A live smoke test, not an automated test: it checks that Gemini accepts the
-tool schema, calls the tool, continues the conversation, and follows the
-prompt. It always uses the real model (USE_MOCK_MODEL is ignored) and needs
+tool schema, calls the tool, continues the conversation, follows the prompt,
+and returns a grounded structured answer. If the agent proposes saving
+matches, you are asked to approve before anything is written.
+
+It always uses the real model (USE_MOCK_MODEL is ignored) and needs
 GEMINI_API_KEY in .env. Each run uses a small amount of free-tier quota.
 
 Usage, from the project root:
@@ -12,21 +15,21 @@ Usage, from the project root:
 import sys
 from datetime import date
 
-from job_search_agent.agent.graph import AgentRun, run_agent
+from job_search_agent.agent.graph import AgentRun, SearchAgent
 from job_search_agent.config import PROJECT_ROOT, get_settings
 from job_search_agent.data.loaders import load_opportunities
 from job_search_agent.domain.models import StudentProfile
 from job_search_agent.llm.errors import ModelError
 from job_search_agent.llm.gemini import create_gemini_client
+from job_search_agent.storage.tracker import JsonFileTracker
 
 PROFILE_PATH = PROJECT_ROOT / "data" / "demo" / "profiles" / "demo_student.json"
 DEFAULT_REQUEST = "Find Python internships I can apply to"
 
 
-def print_run(request: str, run: AgentRun) -> None:
+def print_run(run: AgentRun) -> None:
     """Print a readable summary of one agent run."""
-    print(f"Request:      {request}")
-    print(f"Prompt:       {run.prompt_id}")
+    print(f"Status:       {run.status}")
     print(f"Stop reason:  {run.stop_reason}")
     print(f"Model calls:  {run.model_calls_made}")
     print(f"Tool calls:   {run.tool_calls_made}")
@@ -54,28 +57,37 @@ def print_run(request: str, run: AgentRun) -> None:
 
 
 def main() -> int:
-    """Run one live request and return a process exit code."""
+    """Run one live request, ask for approval if needed, and return an exit code."""
     request = " ".join(sys.argv[1:]) or DEFAULT_REQUEST
     settings = get_settings()
     profile = StudentProfile.model_validate_json(
         PROFILE_PATH.read_text(encoding="utf-8")
     )
+    agent = SearchAgent(
+        model=create_gemini_client(settings),
+        opportunities=load_opportunities(settings.data_dir),
+        today=date.today(),
+        max_tool_calls=settings.max_tool_calls,
+        tracker=JsonFileTracker(settings.tracker_path),
+    )
 
+    print(f"Request: {request}\n")
     try:
-        run = run_agent(
-            request,
-            profile,
-            model=create_gemini_client(settings),
-            opportunities=load_opportunities(settings.data_dir),
-            today=date.today(),
-            max_tool_calls=settings.max_tool_calls,
-        )
+        run = agent.start(request, profile)
     except ModelError as exc:
         print(exc.user_message)  # what a student would see
         print(f"  details: {type(exc).__name__}: {exc}")  # for you, the developer
         return 1
+    print_run(run)
 
-    print_run(request, run)
+    if run.pending_approval is not None:
+        ids = ", ".join(run.pending_approval.opportunity_ids)
+        reply = input(f"\nSave {ids} to your tracker? [y/N] ").strip().lower()
+        done = agent.resume(run.thread_id, approved=reply == "y")
+        if done.saved_ids:
+            print(f"Saved: {', '.join(done.saved_ids)} -> {settings.tracker_path}")
+        else:
+            print("Nothing saved.")
     return 0
 
 
