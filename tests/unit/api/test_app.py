@@ -8,7 +8,8 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-from job_search_agent.api.app import app, get_opportunities, get_today
+from job_search_agent.api.app import app
+from job_search_agent.api.dependencies import get_opportunities, get_today
 from job_search_agent.config import get_settings
 from job_search_agent.data.loaders import load_opportunities
 
