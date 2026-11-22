@@ -48,6 +48,10 @@ class Settings(BaseSettings):
     log_level: LogLevel = "INFO"
     log_json: bool = False
 
+    # Streamlit UI (used from step 18).
+    api_base_url: str = "http://127.0.0.1:8000"
+    ui_request_timeout_seconds: float = Field(default=120.0, gt=0)
+
 
 @lru_cache
 def get_settings() -> Settings:

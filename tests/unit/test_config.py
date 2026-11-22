@@ -18,6 +18,8 @@ SETTING_NAMES = [
     "TRACKER_PATH",
     "LOG_LEVEL",
     "LOG_JSON",
+    "API_BASE_URL",
+    "UI_REQUEST_TIMEOUT_SECONDS",
 ]
 
 
@@ -45,6 +47,8 @@ def test_defaults_are_safe() -> None:
     assert settings.use_mock_model is False
     assert settings.log_level == "INFO"
     assert settings.log_json is False
+    assert settings.api_base_url == "http://127.0.0.1:8000"
+    assert settings.ui_request_timeout_seconds == 120.0
 
 
 def test_default_data_dir_is_absolute_and_points_to_demo_data() -> None:
@@ -103,6 +107,7 @@ def test_api_key_is_hidden_when_printed(monkeypatch: pytest.MonkeyPatch) -> None
         ("MAX_TOOL_CALLS", "0"),
         ("USE_MOCK_MODEL", "maybe"),
         ("LOG_LEVEL", "LOUD"),
+        ("UI_REQUEST_TIMEOUT_SECONDS", "0"),
     ],
 )
 def test_invalid_values_fail_at_startup(
