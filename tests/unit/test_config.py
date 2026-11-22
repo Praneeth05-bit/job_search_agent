@@ -16,6 +16,8 @@ SETTING_NAMES = [
     "MAX_TOOL_CALLS",
     "DATA_DIR",
     "TRACKER_PATH",
+    "LOG_LEVEL",
+    "LOG_JSON",
 ]
 
 
@@ -41,6 +43,8 @@ def test_defaults_are_safe() -> None:
     assert settings.model_max_retries == 2
     assert settings.max_tool_calls == 5
     assert settings.use_mock_model is False
+    assert settings.log_level == "INFO"
+    assert settings.log_json is False
 
 
 def test_default_data_dir_is_absolute_and_points_to_demo_data() -> None:
@@ -98,6 +102,7 @@ def test_api_key_is_hidden_when_printed(monkeypatch: pytest.MonkeyPatch) -> None
         ("MODEL_MAX_RETRIES", "6"),
         ("MAX_TOOL_CALLS", "0"),
         ("USE_MOCK_MODEL", "maybe"),
+        ("LOG_LEVEL", "LOUD"),
     ],
 )
 def test_invalid_values_fail_at_startup(

@@ -33,6 +33,8 @@ class AgentState(TypedDict, total=False):
     tool_results: Annotated[list[ToolResult], operator.add]  # appended, never lost
     tool_calls_made: int
     model_calls_made: int
+    input_tokens: int  # summed over every model call in the run
+    output_tokens: int  # summed over every model call in the run
 
     # Set by the compose or finish node.
     answer: AgentAnswer | None  # the validated, grounded structured answer

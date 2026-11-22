@@ -8,6 +8,10 @@ matches, you are asked to approve before anything is written.
 It always uses the real model (USE_MOCK_MODEL is ignored) and needs
 GEMINI_API_KEY in .env. Each run uses a small amount of free-tier quota.
 
+The run's trace (one log line per step) is written to stderr, so it appears
+in the terminal above the printed summary. Set LOG_JSON=true in .env for JSON
+lines, or LOG_LEVEL=WARNING to hide the trace.
+
 Usage, from the project root:
     uv run python scripts/try_agent.py "Find Python internships I can apply to"
 """
@@ -21,6 +25,7 @@ from job_search_agent.data.loaders import load_opportunities
 from job_search_agent.domain.models import StudentProfile
 from job_search_agent.llm.errors import ModelError
 from job_search_agent.llm.gemini import create_gemini_client
+from job_search_agent.observability.tracing import configure_logging
 from job_search_agent.storage.tracker import JsonFileTracker
 
 PROFILE_PATH = PROJECT_ROOT / "data" / "demo" / "profiles" / "demo_student.json"
@@ -33,6 +38,7 @@ def print_run(run: AgentRun) -> None:
     print(f"Stop reason:  {run.stop_reason}")
     print(f"Model calls:  {run.model_calls_made}")
     print(f"Tool calls:   {run.tool_calls_made}")
+    print(f"Tokens:       {run.input_tokens} in / {run.output_tokens} out")
 
     for number, result in enumerate(run.tool_results, start=1):
         print(f"\nTool result {number}: ok={result.ok}")
@@ -60,6 +66,7 @@ def main() -> int:
     """Run one live request, ask for approval if needed, and return an exit code."""
     request = " ".join(sys.argv[1:]) or DEFAULT_REQUEST
     settings = get_settings()
+    configure_logging(level=settings.log_level, json_output=settings.log_json)
     profile = StudentProfile.model_validate_json(
         PROFILE_PATH.read_text(encoding="utf-8")
     )

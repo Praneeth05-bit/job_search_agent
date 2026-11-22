@@ -7,6 +7,9 @@ exception, such as a bug in our own code, is never caught here.
 Waits grow exponentially (1s, 2s, 4s, ...), are capped, and get a small random
 "jitter" so many clients do not retry at the same instant. ``sleep`` and
 ``jitter`` are parameters so tests can run instantly and predictably.
+
+Each retry is logged (``model_retry``) with the error type and the wait, so a
+trace shows when a call only succeeded on a later attempt.
 """
 
 import random
@@ -17,6 +20,9 @@ from typing import Any
 from job_search_agent.llm.client import ModelClient
 from job_search_agent.llm.errors import ModelError
 from job_search_agent.llm.schemas import ModelResponse, ToolOutput, ToolSpec
+from job_search_agent.observability.tracing import get_logger
+
+log = get_logger(__name__)
 
 
 def backoff_delay(
@@ -73,14 +79,20 @@ def call_with_retries[T](
             is_last_attempt = attempt == max_retries
             if not error.retryable or is_last_attempt:
                 raise
-            sleep(
-                backoff_delay(
-                    attempt,
-                    base_delay_seconds=base_delay_seconds,
-                    max_delay_seconds=max_delay_seconds,
-                    jitter=jitter,
-                )
+            delay = backoff_delay(
+                attempt,
+                base_delay_seconds=base_delay_seconds,
+                max_delay_seconds=max_delay_seconds,
+                jitter=jitter,
             )
+            log.warning(
+                "model_retry",
+                retry=attempt + 1,
+                max_retries=max_retries,
+                error_type=type(error).__name__,
+                delay_s=round(delay, 2),
+            )
+            sleep(delay)
     # The loop always returns or raises; this line is unreachable.
     raise AssertionError("unreachable")
 

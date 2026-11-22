@@ -14,6 +14,8 @@ from pathlib import Path
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from job_search_agent.observability.tracing import LogLevel
+
 # Absolute project root, so default paths work no matter which folder the
 # app is started from.
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -41,6 +43,10 @@ class Settings(BaseSettings):
     # Data.
     data_dir: Path = PROJECT_ROOT / "data" / "demo" / "opportunities"
     tracker_path: Path = PROJECT_ROOT / "data" / "tracker" / "shortlist.json"
+
+    # Logging and tracing (used from step 16).
+    log_level: LogLevel = "INFO"
+    log_json: bool = False
 
 
 @lru_cache

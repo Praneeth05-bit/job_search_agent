@@ -19,8 +19,13 @@ thread id, and ``resume`` continues that thread without repeating the
 searches or model calls. InMemorySaver keeps paused runs in this process
 only; a restart forgets them (a durable checkpointer would be needed for
 that).
+
+Tracing: ``start`` and ``resume`` bind the thread id and prompt version to
+every log event of the run (structlog context variables), and log when a run
+starts, pauses, finishes, or fails, with its totals.
 """
 
+import time
 from collections.abc import Sequence
 from datetime import date
 from typing import Any, Literal
@@ -30,15 +35,19 @@ from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command, interrupt
 from pydantic import BaseModel, ConfigDict
+from structlog.contextvars import bound_contextvars
 
 from job_search_agent.agent.answer import AgentAnswer
 from job_search_agent.agent.nodes import AgentDependencies, AgentNodes
 from job_search_agent.agent.state import AgentState, StopReason
 from job_search_agent.domain.models import Opportunity, StudentProfile
 from job_search_agent.llm.client import ModelClient
+from job_search_agent.observability.tracing import elapsed_ms, get_logger
 from job_search_agent.prompts.loader import Prompt, load_prompt
 from job_search_agent.storage.tracker import Tracker
 from job_search_agent.tools.search_tool import ToolResult
+
+log = get_logger(__name__)
 
 PROMPT_NAME = "search_agent"
 PROMPT_VERSION = 1
@@ -69,6 +78,8 @@ class AgentRun(BaseModel):
     tool_results: list[ToolResult]
     tool_calls_made: int
     model_calls_made: int
+    input_tokens: int
+    output_tokens: int
     prompt_id: str
 
 
@@ -151,11 +162,19 @@ class SearchAgent:
             "tool_results": [],
             "tool_calls_made": 0,
             "model_calls_made": 0,
+            "input_tokens": 0,
+            "output_tokens": 0,
             "approved": None,
             "saved_ids": [],
         }
-        result = self._graph.invoke(initial, config=self._config(thread))
-        return self._to_run(thread, result)
+        with bound_contextvars(thread_id=thread, prompt_id=self._prompt.id):
+            # The request's length only: its text may hold personal details.
+            log.info(
+                "run_started",
+                request_chars=len(request),
+                max_tool_calls=self._max_tool_calls,
+            )
+            return self._invoke(thread, initial)
 
     def resume(self, thread_id: str, *, approved: bool) -> AgentRun:
         """Continue a paused run with the student's decision.
@@ -165,10 +184,35 @@ class SearchAgent:
         """
         if thread_id not in self._waiting:
             raise ValueError(f"No run is waiting for approval with id {thread_id!r}")
-        result = self._graph.invoke(
-            Command(resume=approved), config=self._config(thread_id)
+        with bound_contextvars(thread_id=thread_id, prompt_id=self._prompt.id):
+            log.info("run_resumed", approved=approved)
+            return self._invoke(thread_id, Command(resume=approved))
+
+    def _invoke(self, thread_id: str, graph_input: Any) -> AgentRun:
+        """Run the graph once, then log how the run paused, finished, or failed."""
+        started = time.perf_counter()
+        try:
+            result = self._graph.invoke(graph_input, config=self._config(thread_id))
+        except Exception as error:
+            # The node that failed has already logged its step; this closes the run.
+            log.error(
+                "run_failed",
+                error_type=type(error).__name__,
+                elapsed_ms=elapsed_ms(started),
+            )
+            raise
+        run = self._to_run(thread_id, result)
+        log.info(
+            "run_paused" if run.status == "awaiting_approval" else "run_finished",
+            stop_reason=run.stop_reason,
+            model_calls=run.model_calls_made,
+            tool_calls=run.tool_calls_made,
+            input_tokens=run.input_tokens,
+            output_tokens=run.output_tokens,
+            saved=len(run.saved_ids),
+            elapsed_ms=elapsed_ms(started),
         )
-        return self._to_run(thread_id, result)
+        return run
 
     def _config(self, thread_id: str) -> Any:
         # Worst case: one model call per tool call, plus compose and approval nodes.
@@ -200,5 +244,7 @@ class SearchAgent:
             tool_results=result["tool_results"],
             tool_calls_made=result["tool_calls_made"],
             model_calls_made=result["model_calls_made"],
+            input_tokens=result.get("input_tokens", 0),
+            output_tokens=result.get("output_tokens", 0),
             prompt_id=self._prompt.id,
         )
