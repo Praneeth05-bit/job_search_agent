@@ -1,0 +1,27 @@
+{
+  "id": "ev-003",
+  "title": "Machine Learning Research Assistant",
+  "organization": "SJSU Applied AI Lab",
+  "opportunity_type": "research",
+  "description": "Train PyTorch models for medical imaging, read research papers, and run experiments with a faculty mentor.",
+  "location": "San Jose, CA (on campus)",
+  "source_name": "spartanscout-eval-v1",
+  "source_url": "https://example.com/evals/ev-003",
+  "posted_at": "2026-11-10T17:00:00Z",
+  "deadline": "2027-02-01",
+  "eligibility": {
+    "degree_levels": [
+      "masters",
+      "phd"
+    ],
+    "majors": [
+      "Computer Science",
+      "Artificial Intelligence",
+      "Applied Data Intelligence"
+    ],
+    "minimum_gpa": 3.5,
+    "graduation_start": null,
+    "graduation_end": null,
+    "work_authorizations": null
+  }
+}

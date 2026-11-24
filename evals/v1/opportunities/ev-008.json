@@ -1,0 +1,24 @@
+{
+  "id": "ev-008",
+  "title": "Teaching Assistant, Intro to Python",
+  "organization": "SJSU Department of Computer Science",
+  "opportunity_type": "job",
+  "description": "Lead lab sections for an introductory Python programming course, hold office hours, and grade assignments.",
+  "location": "San Jose, CA (on campus)",
+  "source_name": "spartanscout-eval-v1",
+  "source_url": "https://example.com/evals/ev-008",
+  "posted_at": "2026-11-10T17:00:00Z",
+  "deadline": null,
+  "eligibility": {
+    "degree_levels": [
+      "masters"
+    ],
+    "majors": [
+      "Computer Science"
+    ],
+    "minimum_gpa": 3.3,
+    "graduation_start": null,
+    "graduation_end": null,
+    "work_authorizations": null
+  }
+}

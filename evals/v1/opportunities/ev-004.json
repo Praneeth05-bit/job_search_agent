@@ -1,0 +1,25 @@
+{
+  "id": "ev-004",
+  "title": "Frontend Web Developer Intern",
+  "organization": "King Library Digital Services",
+  "opportunity_type": "internship",
+  "description": "Build accessible React and JavaScript pages for the library website with the digital services team.",
+  "location": "San Jose, CA (hybrid)",
+  "source_name": "spartanscout-eval-v1",
+  "source_url": "https://example.com/evals/ev-004",
+  "posted_at": "2026-11-10T17:00:00Z",
+  "deadline": "2026-12-20",
+  "eligibility": {
+    "degree_levels": [
+      "bachelors",
+      "masters"
+    ],
+    "majors": null,
+    "minimum_gpa": null,
+    "graduation_start": null,
+    "graduation_end": null,
+    "work_authorizations": [
+      "authorized_to_work_in_us"
+    ]
+  }
+}

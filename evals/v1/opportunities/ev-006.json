@@ -1,0 +1,29 @@
+{
+  "id": "ev-006",
+  "title": "Cloud Infrastructure Intern",
+  "organization": "Harborlight Public Data Co-op",
+  "opportunity_type": "internship",
+  "description": "Automate cloud deployments with AWS, Docker, Kubernetes, and Terraform for open data services.",
+  "location": "Oakland, CA (remote friendly)",
+  "source_name": "spartanscout-eval-v1",
+  "source_url": "https://example.com/evals/ev-006",
+  "posted_at": "2026-11-10T17:00:00Z",
+  "deadline": "2027-01-31",
+  "eligibility": {
+    "degree_levels": [
+      "bachelors",
+      "masters"
+    ],
+    "majors": [
+      "Computer Science",
+      "Software Engineering",
+      "Computer Engineering"
+    ],
+    "minimum_gpa": 3.2,
+    "graduation_start": "2027-05-01",
+    "graduation_end": "2028-12-31",
+    "work_authorizations": [
+      "authorized_to_work_in_us"
+    ]
+  }
+}

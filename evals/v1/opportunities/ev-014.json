@@ -1,0 +1,27 @@
+{
+  "id": "ev-014",
+  "title": "Robotics Research Assistant",
+  "organization": "SJSU Robotics Lab",
+  "opportunity_type": "research",
+  "description": "Program robots with ROS and C++ and test embedded control systems in the lab.",
+  "location": "San Jose, CA (on campus)",
+  "source_name": "spartanscout-eval-v1",
+  "source_url": "https://example.com/evals/ev-014",
+  "posted_at": "2026-11-10T17:00:00Z",
+  "deadline": "2027-02-10",
+  "eligibility": {
+    "degree_levels": [
+      "masters",
+      "phd"
+    ],
+    "majors": [
+      "Mechanical Engineering",
+      "Electrical Engineering",
+      "Computer Engineering"
+    ],
+    "minimum_gpa": null,
+    "graduation_start": null,
+    "graduation_end": null,
+    "work_authorizations": null
+  }
+}

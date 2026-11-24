@@ -1,0 +1,30 @@
+{
+  "id": "ev-016",
+  "title": "Software Engineering Intern",
+  "organization": "Harborlight Public Data Co-op",
+  "opportunity_type": "internship",
+  "description": "Ship features in Python and Java REST APIs, take part in code reviews, and work in an agile team.",
+  "location": "Oakland, CA (hybrid)",
+  "source_name": "spartanscout-eval-v1",
+  "source_url": "https://example.com/evals/ev-016",
+  "posted_at": "2026-11-10T17:00:00Z",
+  "deadline": "2027-02-01",
+  "eligibility": {
+    "degree_levels": [
+      "bachelors",
+      "masters"
+    ],
+    "majors": [
+      "Computer Science",
+      "Software Engineering",
+      "Computer Engineering",
+      "Applied Data Intelligence"
+    ],
+    "minimum_gpa": 3.0,
+    "graduation_start": "2027-01-01",
+    "graduation_end": "2028-12-31",
+    "work_authorizations": [
+      "authorized_to_work_in_us"
+    ]
+  }
+}

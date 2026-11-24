@@ -1,0 +1,22 @@
+{
+  "id": "ev-007",
+  "title": "Data Engineering Intern",
+  "organization": "Bayline Transit Analytics",
+  "opportunity_type": "internship",
+  "description": "Build data pipelines with Python, Spark, and Airflow for transit ridership reporting.",
+  "location": "San Jose, CA (hybrid)",
+  "source_name": "spartanscout-eval-v1",
+  "source_url": "https://example.com/evals/ev-007",
+  "posted_at": "2026-11-10T17:00:00Z",
+  "deadline": "2026-11-15",
+  "eligibility": {
+    "degree_levels": [
+      "masters"
+    ],
+    "majors": null,
+    "minimum_gpa": null,
+    "graduation_start": null,
+    "graduation_end": null,
+    "work_authorizations": null
+  }
+}

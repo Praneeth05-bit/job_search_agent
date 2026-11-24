@@ -1,0 +1,29 @@
+{
+  "id": "ev-009",
+  "title": "Cybersecurity Analyst Intern",
+  "organization": "Spartan IT Security Office",
+  "opportunity_type": "internship",
+  "description": "Monitor security alerts in the SIEM, support incident response, and review network security logs.",
+  "location": "San Jose, CA (on campus)",
+  "source_name": "spartanscout-eval-v1",
+  "source_url": "https://example.com/evals/ev-009",
+  "posted_at": "2026-11-10T17:00:00Z",
+  "deadline": "2027-01-20",
+  "eligibility": {
+    "degree_levels": [
+      "bachelors",
+      "masters"
+    ],
+    "majors": [
+      "Computer Science",
+      "Computer Engineering",
+      "Information Systems"
+    ],
+    "minimum_gpa": null,
+    "graduation_start": null,
+    "graduation_end": null,
+    "work_authorizations": [
+      "authorized_to_work_in_us"
+    ]
+  }
+}

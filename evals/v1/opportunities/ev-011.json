@@ -1,0 +1,20 @@
+{
+  "id": "ev-011",
+  "title": "Campus Tour Guide",
+  "organization": "SJSU Admissions Office",
+  "opportunity_type": "job",
+  "description": "Lead walking tours for prospective students and families and answer questions about student life.",
+  "location": "San Jose, CA (on campus)",
+  "source_name": "spartanscout-eval-v1",
+  "source_url": "https://example.com/evals/ev-011",
+  "posted_at": "2026-11-10T17:00:00Z",
+  "deadline": "2027-01-05",
+  "eligibility": {
+    "degree_levels": null,
+    "majors": null,
+    "minimum_gpa": null,
+    "graduation_start": null,
+    "graduation_end": null,
+    "work_authorizations": null
+  }
+}

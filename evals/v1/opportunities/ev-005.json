@@ -1,0 +1,25 @@
+{
+  "id": "ev-005",
+  "title": "Graphic Design Assistant",
+  "organization": "Student Union Marketing",
+  "opportunity_type": "job",
+  "description": "Design posters and social graphics in Figma and Adobe Illustrator for Student Union events.",
+  "location": "San Jose, CA (on campus)",
+  "source_name": "spartanscout-eval-v1",
+  "source_url": "https://example.com/evals/ev-005",
+  "posted_at": "2026-11-10T17:00:00Z",
+  "deadline": "2026-12-15",
+  "eligibility": {
+    "degree_levels": [
+      "bachelors"
+    ],
+    "majors": [
+      "Design",
+      "Art"
+    ],
+    "minimum_gpa": null,
+    "graduation_start": null,
+    "graduation_end": null,
+    "work_authorizations": null
+  }
+}

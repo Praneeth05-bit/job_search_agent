@@ -1,0 +1,25 @@
+{
+  "id": "ev-002",
+  "title": "Python Backend Developer",
+  "organization": "Spartan IT Services",
+  "opportunity_type": "job",
+  "description": "Build Python APIs with FastAPI and PostgreSQL for campus scheduling tools and write unit tests.",
+  "location": "San Jose, CA (on campus)",
+  "source_name": "spartanscout-eval-v1",
+  "source_url": "https://example.com/evals/ev-002",
+  "posted_at": "2026-11-10T17:00:00Z",
+  "deadline": "2027-01-10",
+  "eligibility": {
+    "degree_levels": [
+      "masters"
+    ],
+    "majors": [
+      "Computer Science",
+      "Software Engineering"
+    ],
+    "minimum_gpa": null,
+    "graduation_start": null,
+    "graduation_end": null,
+    "work_authorizations": null
+  }
+}

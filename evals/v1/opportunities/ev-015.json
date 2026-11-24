@@ -1,0 +1,22 @@
+{
+  "id": "ev-015",
+  "title": "Social Media Marketing Assistant",
+  "organization": "Associated Students",
+  "opportunity_type": "job",
+  "description": "Create Instagram and TikTok content, write captions, and track engagement for student programs.",
+  "location": "San Jose, CA (on campus)",
+  "source_name": "spartanscout-eval-v1",
+  "source_url": "https://example.com/evals/ev-015",
+  "posted_at": "2026-11-10T17:00:00Z",
+  "deadline": "2027-01-12",
+  "eligibility": {
+    "degree_levels": [
+      "bachelors"
+    ],
+    "majors": null,
+    "minimum_gpa": null,
+    "graduation_start": null,
+    "graduation_end": null,
+    "work_authorizations": null
+  }
+}

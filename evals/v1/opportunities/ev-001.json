@@ -1,0 +1,30 @@
+{
+  "id": "ev-001",
+  "title": "Data Analyst Intern",
+  "organization": "Campus Analytics Office",
+  "opportunity_type": "internship",
+  "description": "Clean student survey data with SQL and Python and build Tableau dashboards for campus leaders.",
+  "location": "San Jose, CA (on campus)",
+  "source_name": "spartanscout-eval-v1",
+  "source_url": "https://example.com/evals/ev-001",
+  "posted_at": "2026-11-10T17:00:00Z",
+  "deadline": "2027-01-15",
+  "eligibility": {
+    "degree_levels": [
+      "bachelors",
+      "masters"
+    ],
+    "majors": [
+      "Data Science",
+      "Applied Data Intelligence",
+      "Statistics",
+      "Computer Science"
+    ],
+    "minimum_gpa": 3.0,
+    "graduation_start": null,
+    "graduation_end": null,
+    "work_authorizations": [
+      "authorized_to_work_in_us"
+    ]
+  }
+}
