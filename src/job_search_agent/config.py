@@ -52,6 +52,12 @@ class Settings(BaseSettings):
     api_base_url: str = "http://127.0.0.1:8000"
     ui_request_timeout_seconds: float = Field(default=120.0, gt=0)
 
+    # Paid-tier list prices for cost estimates in eval reports, USD per 1M
+    # tokens (gemini-3.6-flash standard, checked 2026-11-23 on
+    # ai.google.dev/gemini-api/docs/pricing). The free tier costs $0.
+    price_input_per_million: float = Field(default=1.50, ge=0)
+    price_output_per_million: float = Field(default=7.50, ge=0)
+
 
 @lru_cache
 def get_settings() -> Settings:

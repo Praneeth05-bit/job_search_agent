@@ -1,0 +1,115 @@
+# Continuous integration: GitHub runs these checks on its own Linux machines
+# on every push to main or dev and on every pull request.
+#
+# Three jobs run in parallel:
+#   quality     ruff (format + lint), mypy, pytest
+#   eval-smoke  the 30 eval cases on the offline demo model, with quality gates
+#   docker      build the image and check that the API answers /health
+#
+# No secrets are used: CI never calls Gemini, so it is free and repeatable.
+# Action versions checked 2026-11-25: actions/checkout v6, astral-sh/setup-uv
+# v8.1.0 (setup-uv publishes only full, immutable version tags since v8).
+
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+  workflow_dispatch: # allows a manual run from the Actions tab
+
+permissions:
+  contents: read # least privilege: CI only reads the code
+
+concurrency: # a newer push cancels the older run on the same branch
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UV_VERSION: "0.12.17" # same uv that created uv.lock (and used in the Dockerfile)
+
+jobs:
+  quality:
+    name: Lint, types, tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Install Python and dependencies from the lock file
+        run: uv sync --locked
+
+      - name: Ruff format (check only, never rewrites)
+        run: uv run ruff format --check .
+
+      - name: Ruff lint
+        run: uv run ruff check .
+
+      - name: Mypy (strict)
+        run: uv run mypy
+
+      - name: Tests
+        run: uv run python -m pytest
+
+  eval-smoke:
+    name: Eval smoke test (demo model)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          enable-cache: true
+
+      - name: Install Python and dependencies from the lock file
+        run: uv sync --locked
+
+      # Fails the build if any forbidden job is recommended, any case crashes,
+      # or fewer than 80% of cases pass (the demo baseline is 24/30).
+      - name: Run evals with quality gates
+        run: >
+          uv run python scripts/run_evals.py --model demo
+          --out eval-report
+          --max-forbidden 0 --max-errors 0 --min-pass-rate 0.8
+
+      - name: Show the eval report on the run page
+        if: always()
+        run: cat eval-report/*.md >> "$GITHUB_STEP_SUMMARY" || true
+
+  docker:
+    name: Docker build and health check
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build the image
+        run: docker build --tag spartanscout:ci .
+
+      - name: Start the API container
+        run: docker run --detach --name api --publish 8000:8000 --env USE_MOCK_MODEL=true spartanscout:ci
+
+      - name: Wait for /health
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --silent --fail http://localhost:8000/health; then
+              echo " API is healthy"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "API did not become healthy"
+          exit 1
+
+      - name: Show container logs if something failed
+        if: failure()
+        run: docker logs api

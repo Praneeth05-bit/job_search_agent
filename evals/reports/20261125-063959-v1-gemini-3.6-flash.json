@@ -1,0 +1,89 @@
+{
+  "dataset_version": "v1",
+  "dataset_today": "2026-12-01",
+  "model": "gemini-3.6-flash",
+  "prompt_id": "search_agent@v1",
+  "started_at": "2026-11-25T06:39:59.063868Z",
+  "repeat": 1,
+  "price_input_per_million": 1.5,
+  "price_output_per_million": 7.5,
+  "summary": {
+    "cases": {
+      "passed": 1,
+      "total": 1
+    },
+    "errors": 0,
+    "by_category": {
+      "normal": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "by_check": {
+      "completed": {
+        "passed": 1,
+        "total": 1
+      },
+      "forbidden": {
+        "passed": 1,
+        "total": 1
+      },
+      "recall": {
+        "passed": 1,
+        "total": 1
+      },
+      "tool_choice": {
+        "passed": 1,
+        "total": 1
+      }
+    },
+    "forbidden_recommendations": 0,
+    "consistent_cases": null,
+    "latency_p50_ms": 47031.2,
+    "latency_p95_ms": 47031.2,
+    "input_tokens": 3358,
+    "output_tokens": 321,
+    "estimated_cost_usd": 0.0074
+  },
+  "results": [
+    {
+      "case_id": "normal-001",
+      "category": "normal",
+      "attempt": 1,
+      "status": "passed",
+      "checks": [
+        {
+          "name": "completed",
+          "passed": true,
+          "detail": "stop reason: completed"
+        },
+        {
+          "name": "tool_choice",
+          "passed": true,
+          "detail": "searched=True, expected True"
+        },
+        {
+          "name": "recall",
+          "passed": true,
+          "detail": "all required found"
+        },
+        {
+          "name": "forbidden",
+          "passed": true,
+          "detail": "none forbidden"
+        }
+      ],
+      "recommended": [
+        "ev-002",
+        "ev-008"
+      ],
+      "stop_reason": "completed",
+      "error_type": null,
+      "tool_calls": 1,
+      "model_calls": 3,
+      "input_tokens": 3358,
+      "output_tokens": 321,
+      "latency_ms": 47031.2
+    }
+  ]
+}

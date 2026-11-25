@@ -20,6 +20,8 @@ SETTING_NAMES = [
     "LOG_JSON",
     "API_BASE_URL",
     "UI_REQUEST_TIMEOUT_SECONDS",
+    "PRICE_INPUT_PER_MILLION",
+    "PRICE_OUTPUT_PER_MILLION",
 ]
 
 
@@ -49,6 +51,8 @@ def test_defaults_are_safe() -> None:
     assert settings.log_json is False
     assert settings.api_base_url == "http://127.0.0.1:8000"
     assert settings.ui_request_timeout_seconds == 120.0
+    assert settings.price_input_per_million == 1.50
+    assert settings.price_output_per_million == 7.50
 
 
 def test_default_data_dir_is_absolute_and_points_to_demo_data() -> None:
@@ -108,6 +112,7 @@ def test_api_key_is_hidden_when_printed(monkeypatch: pytest.MonkeyPatch) -> None
         ("USE_MOCK_MODEL", "maybe"),
         ("LOG_LEVEL", "LOUD"),
         ("UI_REQUEST_TIMEOUT_SECONDS", "0"),
+        ("PRICE_INPUT_PER_MILLION", "-1"),
     ],
 )
 def test_invalid_values_fail_at_startup(
