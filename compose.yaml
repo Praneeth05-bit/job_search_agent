@@ -1,0 +1,54 @@
+# Run SpartanScout with one command:   docker compose up --build
+#   API:  http://localhost:8000/docs
+#   UI:   http://localhost:8501
+#
+# Settings come from your .env file at run time; the image never contains it.
+# Without a .env, the offline demo model is used (USE_MOCK_MODEL defaults to true).
+
+name: spartanscout
+
+services:
+  api:
+    build: .
+    image: spartanscout:latest
+    command: ["uvicorn", "job_search_agent.api.app:app", "--host", "0.0.0.0", "--port", "8000"]
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      USE_MOCK_MODEL: ${USE_MOCK_MODEL:-true}
+    ports:
+      - "8000:8000"
+    volumes:
+      - tracker:/app/data/tracker   # saved shortlists survive restarts
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  ui:
+    build: .
+    image: spartanscout:latest
+    command:
+      - streamlit
+      - run
+      - src/job_search_agent/ui/app.py
+      - --server.address=0.0.0.0
+      - --server.port=8501
+      - --server.headless=true
+      - --browser.gatherUsageStats=false
+    # Least privilege: the UI gets no API key, only the address of the API.
+    # Inside the compose network "api" is the API container's name;
+    # "localhost" would mean the UI container itself.
+    environment:
+      API_BASE_URL: http://api:8000
+    ports:
+      - "8501:8501"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  tracker:

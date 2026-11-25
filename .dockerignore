@@ -1,0 +1,26 @@
+# Keep secrets, local environments, and clutter out of the image.
+# Secrets: the API key is passed at run time (compose.yaml), never built in.
+.env
+.env.*
+env.example
+**/*.pem
+
+# Rebuilt inside the image
+.venv/
+**/__pycache__/
+**/*.py[cod]
+
+# Tool caches and version control
+.git/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Not needed to run the app
+tests/
+evals/reports/
+data/tracker/
+Claude outputs/
+*.png
+.vscode/
+.idea/
