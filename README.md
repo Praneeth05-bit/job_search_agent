@@ -215,4 +215,4 @@ Python 3.12 · uv · LangGraph 1.2 · Google Gen AI SDK 2.24 (Gemini Interaction
 
 ---
 
-Built by **Geethaamruth Tirumalasetty** · [LinkedIn](https://www.linkedin.com/in/tgv-praneeth)
+Built by **TGV Praneeth** · [LinkedIn](https://www.linkedin.com/in/tgv-praneeth)
